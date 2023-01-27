@@ -3,14 +3,19 @@
 #ifndef CAMERA_LUCID_TASK_TASK_HPP
 #define CAMERA_LUCID_TASK_TASK_HPP
 
+#include "Arena/ArenaApi.h"
 #include "camera_lucid/TaskBase.hpp"
+#include <string>
 
-namespace camera_lucid{
+namespace camera_lucid {
 
     /*! \class Task
-     * \brief The task context provides and requires services. It uses an ExecutionEngine to perform its functions.
-     * Essential interfaces are operations, data flow ports and properties. These interfaces have been defined using the oroGen specification.
-     * In order to modify the interfaces you should (re)use oroGen and rely on the associated workflow.
+     * \brief The task context provides and requires services. It uses an ExecutionEngine
+to perform its functions.
+     * Essential interfaces are operations, data flow ports and properties. These
+interfaces have been defined using the oroGen specification.
+     * In order to modify the interfaces you should (re)use oroGen and rely on the
+associated workflow.
      * Declare a new task context (i.e., a component)
 
 The corresponding C++ class can be edited in tasks/Task.hpp and
@@ -22,25 +27,35 @@ tasks/Task.cpp, and will be put in the camera_lucid namespace.
          task('custom_task_name','camera_lucid::Task')
      end
      \endverbatim
-     *  It can be dynamically adapted when the deployment is called with a prefix argument.
+     *  It can be dynamically adapted when the deployment is called with a prefix
+argument.
      */
-    class Task : public TaskBase
-    {
-	friend class TaskBase;
-    protected:
+    class Task : public TaskBase {
+        friend class TaskBase;
 
+    private:
+        std::string m_ip;
+        Arena::ISystem* m_system;
+        Arena::IDevice* m_device;
+        // GenICam::gcstring m_acquisition_mode_intial;
+        RTT::extras::ReadOnlyPointer<base::samples::frame::Frame> m_frame;
 
+        // The switchover key to be used
+        int64_t m_switchover_key = 0x1000;
+        template <typename F> bool applyCommand(F f);
+        void treatError();
 
     public:
         /** TaskContext constructor for Task
-         * \param name Name of the task. This name needs to be unique to make it identifiable via nameservices.
-         * \param initial_state The initial TaskState of the TaskContext. Default is Stopped state.
+         * \param name Name of the task. This name needs to be unique to make it
+         * identifiable via nameservices. \param initial_state The initial TaskState of
+         * the TaskContext. Default is Stopped state.
          */
         Task(std::string const& name = "camera_lucid::Task");
 
         /** Default deconstructor of Task
          */
-	~Task();
+        ~Task();
 
         /** This hook is called by Orocos when the state machine transitions
          * from PreOperational to Stopped. If it returns false, then the
@@ -99,8 +114,26 @@ tasks/Task.cpp, and will be put in the camera_lucid namespace.
          * before calling start() again.
          */
         void cleanupHook();
+
+        bool connectToCamera();
+        bool switchOverAccess();
+        bool configureCamera();
+        bool binningConfiguration();
+        bool decimationConfiguration();
+        bool dimensionsConfiguration();
+        bool resetConfiguration();
+        bool exposureConfiguration();
+        bool offsetConfiguration();
+
+        void startCamera();
+        void acquireFrame();
+        base::samples::frame::frame_mode_t convertPixelFormatToFrameMode(
+            PfncFormat format,
+            uint8_t& data_depth);
+        std::string convertFrameModeToPixelFormat(
+            base::samples::frame::frame_mode_t format,
+            uint8_t data_depth);
     };
 }
 
 #endif
-
