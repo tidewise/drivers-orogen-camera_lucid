@@ -118,12 +118,12 @@ argument.
         bool connectToCamera();
         bool switchOverAccess();
         bool configureCamera();
+        bool factoryReset();
+        bool acquisitionConfiguration();
         bool binningConfiguration();
         bool decimationConfiguration();
         bool dimensionsConfiguration();
-        bool resetConfiguration();
         bool exposureConfiguration();
-        bool offsetConfiguration();
 
         void startCamera();
         void acquireFrame();
