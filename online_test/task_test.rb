@@ -11,15 +11,15 @@ describe OroGen.camera_lucid.Task do
         task = create_configure_and_start_task
 
         output = expect_execution.timeout(0.5).to do
-            # have_one_new_sample(task.frame_port)
+            have_one_new_sample(task.frame_port)
         end
 
-        # puts "Size: "
-        # pp output.size
-        # puts "Frame mode: "
-        # pp output.frame_mode
-        # puts "Data depth:"
-        # pp output.data_depth
+        puts "Size: "
+        pp output.size
+        puts "Frame mode: "
+        pp output.frame_mode
+        puts "Data depth:"
+        pp output.data_depth
         STDIN.readline
         puts "Does the output looks OK ?"
         ask_ok
@@ -38,7 +38,7 @@ describe OroGen.camera_lucid.Task do
                   .deployed_as("camera_lucid_task")
         )
 
-        task.properties.ip = "10.1.1.56"
+        task.properties.ip = "192.168.88.247"
         task.properties.frame_timeout = Time.at(0.2)
         task.properties.frame_rate = 15.0
         task.properties.binning_selector = "Digital"
