@@ -10,7 +10,7 @@ describe OroGen.camera_lucid.Task do
     it "starts and gets a frame" do
         task = create_configure_and_start_task
 
-        output = expect_execution.timeout(0.5).to do
+        output = expect_execution.timeout(1.0).to do
             have_one_new_sample(task.frame_port)
         end
 
@@ -38,25 +38,32 @@ describe OroGen.camera_lucid.Task do
                   .deployed_as("camera_lucid_task")
         )
 
-        task.properties.ip = "192.168.88.247"
-        task.properties.frame_timeout = Time.at(0.2)
-        task.properties.frame_rate = 15.0
-        task.properties.binning_selector = "Digital"
-        task.properties.binning_type = "Sum"
-        task.properties.binning_x = 1
-        task.properties.binning_y = 1
-        task.properties.decimation_selector = "Sensor"
-        task.properties.decimation_type = "Discard"
-        task.properties.decimation_x = 1
-        task.properties.decimation_y = 1
-        task.properties.camera_format = "MODE_BAYER_RGGB"
-        task.properties.depth = 8
-        task.properties.auto_exposure = "Continuous"
-        task.properties.exposure_time = Time.at(0.008)
-        task.properties.width = 1224
-        task.properties.height = 1024
-        task.properties.offset_x = 0
-        task.properties.offset_y = 0
+        task.properties.ip = "10.1.1.14"
+        task.properties.image_config = Types.camera_lucid.ImageConfig.new
+        task.properties.image_config.frame_timeout = Time.at(0.2)
+        task.properties.image_config.frame_rate = 21.0
+        task.properties.image_config.format = "MODE_BAYER_RGGB"
+        task.properties.image_config.depth = 8
+        task.properties.image_config.exposure_auto = "EXPOSURE_AUTO_OFF"
+        task.properties.image_config.exposure_time = Time.at(0.008)
+        task.properties.image_config.width = 2448
+        task.properties.image_config.height = 2048
+        task.properties.image_config.offset_x = 0
+        task.properties.image_config.offset_y = 0
+
+        task.properties.binning_config = Types.camera_lucid.BinningConfig.new
+        task.properties.binning_config.selector = "BINNING_SELECTOR_DIGITAL"
+        task.properties.binning_config.horizontal_mode = "BINNING_MODE_SUM"
+        task.properties.binning_config.vertical_mode = "BINNING_MODE_SUM"
+        task.properties.binning_config.binning_x = 1
+        task.properties.binning_config.binning_y = 1
+
+        task.properties.decimation_config = Types.camera_lucid.DecimationConfig.new
+        task.properties.decimation_config.selector = "DECIMATION_SELECTOR_SENSOR"
+        task.properties.decimation_config.horizontal_mode = "DECIMATION_MODE_DISCARD"
+        task.properties.decimation_config.vertical_mode = "DECIMATION_MODE_DISCARD"
+        task.properties.decimation_config.decimation_x = 1
+        task.properties.decimation_config.decimation_y = 1
 
         task
     end

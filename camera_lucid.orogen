@@ -22,25 +22,26 @@ import_types_from "base"
 task_context "Task" do
     needs_configuration
 
+    # Camera's IP
     property "ip", "/std/string"
-    property "frame_timeout", "/base/Time"
-    property "frame_rate", "double"
-    property "binning_selector", "std/string"
-    property "binning_type", "std/string"
-    property "binning_x", "int"
-    property "binning_y", "int"
-    property "decimation_selector", "std/string"
-    property "decimation_type", "std/string"
-    property "decimation_x", "int"
-    property "decimation_y", "int"
-    property "camera_format", "base/samples/frame/frame_mode_t"
-    property "depth", "uint8_t"
-    property "exposure_auto", "std/string"
-    property "exposure_time", "/base/Time"
-    property "width", "int"
-    property "height", "int"
-    property "offset_x", "int"
-    property "offset_y", "int"
+
+    # Binning Configuration:
+    # columns and/or rows of pixels are combined to achieve a reduced overall image size
+    # without changing the image's field of view. This feature may result in an increase
+    # of camera s frame rate.
+
+    property "binning_config", "camera_lucid/BinningConfig"
+
+    # Decimation Configuration:
+    # columns and/or rows of pixel are skipped to achieve reduced overall image size
+    # without changing the image's field of view. This feature is also known as
+    # "subsampling" due to the smaller sample size of pixels the camera transmits. This
+    # feature may result in an increase of camera's frame rate.
+
+    property "decimation_config", "camera_lucid/DecimationConfig"
+
+    # Image Configuration
+    property "image_config", "camera_lucid/ImageConfig"
 
     output_port "frame", ro_ptr("base/samples/frame/Frame")
     periodic 0.1

@@ -25,18 +25,21 @@ Task::~Task()
 bool Task::configureHook()
 {
     try {
-        if (!TaskBase::configureHook())
+        if (!TaskBase::configureHook()) {
             return false;
+        }
 
-        if (!connectToCamera())
+        if (!connectToCamera()) {
             return false;
+        }
 
-        if (!switchOverAccess())
+        if (!switchOverAccess()) {
             return false;
+        }
 
-        if (!configureCamera())
+        if (!configureCamera()) {
             return false;
-
+        }
         return true;
     }
     catch (GenICam::GenericException& ge) {
@@ -51,9 +54,9 @@ bool Task::configureHook()
 
 bool Task::startHook()
 {
-    if (!TaskBase::startHook())
+    if (!TaskBase::startHook()) {
         return false;
-
+    }
     startCamera();
     return true;
 }
@@ -127,26 +130,26 @@ bool Task::switchOverAccess()
         LOG_INFO_S << "Task already has the Camera Read/Write Access." << endl;
         return true;
     }
-    else {
-        // Apply the correct switchover key and change the DeviceAccessStatus to ReadWrite
-        // to gain control If there is no switchover key, or an incorrect switchover key,
-        // ReadWrite access will not be granted
-        Arena::SetNodeValue<int64_t>(m_device->GetTLDeviceNodeMap(),
-            "CcpSwitchoverKey",
-            m_switchover_key);
-        Arena::SetNodeValue<GenICam::gcstring>(m_device->GetTLDeviceNodeMap(),
-            "DeviceAccessStatus",
-            "ReadWrite");
 
-        // confirm if operation was successfull
-        device_access_status =
-            Arena::GetNodeValue<GenICam::gcstring>(m_device->GetTLDeviceNodeMap(),
-                "DeviceAccessStatus");
-        if (device_access_status == "ReadWrite") {
-            LOG_INFO_S << "Task retrieved the Camera Read/Write Access." << endl;
-            return true;
-        }
+    // Apply the correct switchover key and change the DeviceAccessStatus to ReadWrite
+    // to gain control If there is no switchover key, or an incorrect switchover key,
+    // ReadWrite access will not be granted
+    Arena::SetNodeValue<int64_t>(m_device->GetTLDeviceNodeMap(),
+        "CcpSwitchoverKey",
+        m_switchover_key);
+    Arena::SetNodeValue<GenICam::gcstring>(m_device->GetTLDeviceNodeMap(),
+        "DeviceAccessStatus",
+        "ReadWrite");
+
+    // confirm if operation was successfull
+    device_access_status =
+        Arena::GetNodeValue<GenICam::gcstring>(m_device->GetTLDeviceNodeMap(),
+            "DeviceAccessStatus");
+    if (device_access_status == "ReadWrite") {
+        LOG_INFO_S << "Task retrieved the Camera Read/Write Access." << endl;
+        return true;
     }
+
     LOG_WARN_S << "Task failed to retrieved the Camera Read/Write Access." << endl;
     return false;
 }
@@ -154,12 +157,14 @@ bool Task::switchOverAccess()
 bool Task::configureCamera()
 {
     LOG_INFO_S << "Performing Factory Reset" << endl;
-    if (!factoryReset())
+    if (!factoryReset()) {
         return false;
+    }
 
     LOG_INFO_S << "Configuring camera." << endl;
-    if (!acquisitionConfiguration())
+    if (!acquisitionConfiguration()) {
         return false;
+    }
 
     LOG_INFO_S << "Setting StreamBufferHandlingMode." << endl;
     Arena::SetNodeValue<GenICam::gcstring>(m_device->GetTLStreamNodeMap(),
@@ -179,7 +184,9 @@ bool Task::configureCamera()
     LOG_INFO_S << "Setting PixelFormat." << endl;
     Arena::SetNodeValue<GenICam::gcstring>(m_device->GetNodeMap(),
         "PixelFormat",
-        convertFrameModeToPixelFormat(_camera_format.get(), _depth.get()).c_str());
+        convertFrameModeToPixelFormat(_image_config.get().format,
+            _image_config.get().depth)
+            .c_str());
 
     // When horizontal binning is used, horizontal decimation (if supported) is not
     // available. When vertical binning is used, vertical decimation (if supported) is not
@@ -187,20 +194,28 @@ bool Task::configureCamera()
 
     // If the camera is acquiring images, AcquisitionStop must be called before adjusting
     // binning settings.
-    if (!binningConfiguration())
+    if (!binningConfiguration()) {
         return false;
+    }
 
-    if (!decimationConfiguration())
+    if (!decimationConfiguration()) {
         return false;
+    }
 
-    if (!dimensionsConfiguration())
+    if (!dimensionsConfiguration()) {
         return false;
+    }
 
-    if (!exposureConfiguration())
+    if (!exposureConfiguration()) {
         return false;
+    }
 
-    Frame* frame =
-        new Frame(_width.get(), _height.get(), _depth.get(), _camera_format.get(), 0, 0);
+    Frame* frame = new Frame(_image_config.get().width,
+        _image_config.get().height,
+        _image_config.get().depth,
+        _image_config.get().format,
+        0,
+        0);
     m_frame.reset(frame);
 
     return true;
@@ -215,34 +230,33 @@ void Task::startCamera()
 void Task::acquireFrame()
 {
     try {
-        Arena::IImage* image = m_device->GetImage(_frame_timeout.get().toMilliseconds());
+        Arena::IImage* image =
+            m_device->GetImage(_image_config.get().frame_timeout.toMilliseconds());
         if (image->IsIncomplete()) {
             LOG_ERROR_S << "Image is not complete!! " << endl;
             m_device->RequeueBuffer(image);
         }
-        else {
 
-            size_t size = image->GetSizeFilled();
-            size_t width = image->GetWidth();
-            size_t height = image->GetHeight();
-            PfncFormat pixel_format = static_cast<PfncFormat>(image->GetPixelFormat());
-            uint8_t data_depth = 0U;
-            auto format = convertPixelFormatToFrameMode(pixel_format, data_depth);
+        size_t size = image->GetSizeFilled();
+        size_t width = image->GetWidth();
+        size_t height = image->GetHeight();
+        PfncFormat pixel_format = static_cast<PfncFormat>(image->GetPixelFormat());
+        uint8_t data_depth = 0U;
+        auto format = convertPixelFormatToFrameMode(pixel_format, data_depth);
 
-            Frame* out_frame = m_frame.write_access();
-            if (width != out_frame->getWidth() || height != out_frame->getHeight() ||
-                format != out_frame->getFrameMode()) {
-                out_frame->init(width, height, data_depth, format, 0, size);
-            }
-            out_frame->time = base::Time::now();
-            out_frame->received_time = out_frame->time;
-
-            out_frame->setImage(image->GetData(), size);
-            out_frame->setStatus(STATUS_VALID);
-            m_frame.reset(out_frame);
-            m_device->RequeueBuffer(image);
-            _frame.write(m_frame);
+        Frame* out_frame = m_frame.write_access();
+        if (width != out_frame->getWidth() || height != out_frame->getHeight() ||
+            format != out_frame->getFrameMode()) {
+            out_frame->init(width, height, data_depth, format, 0, size);
         }
+        out_frame->time = base::Time::now();
+        out_frame->received_time = out_frame->time;
+
+        out_frame->setImage(image->GetData(), size);
+        out_frame->setStatus(STATUS_VALID);
+        m_frame.reset(out_frame);
+        m_device->RequeueBuffer(image);
+        _frame.write(m_frame);
     }
     catch (GenICam::GenericException& ge) {
         LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
@@ -349,10 +363,11 @@ bool Task::binningConfiguration()
         return false;
     }
 
-    LOG_INFO_S << "Set binning mode to " << _binning_selector.get() << endl;
+    LOG_INFO_S << "Set binning mode to "
+               << binning_selector_name.at(_binning_config.get().selector) << endl;
     Arena::SetNodeValue<gcstring>(m_device->GetNodeMap(),
         "BinningSelector",
-        _binning_selector.get().c_str());
+        binning_selector_name.at(_binning_config.get().selector).c_str());
 
     // Check if the nodes for the height and width of the bin are available
     //    For rare case where sensor binning is unsupported but still appears as
@@ -376,36 +391,38 @@ bool Task::binningConfiguration()
     int64_t max_binning_height = binning_vertical_node->GetMax();
     int64_t max_binning_width = binning_horizontal_node->GetMax();
 
-    if (_binning_x.get() > max_binning_height) {
+    if (_binning_config.get().binning_x > max_binning_height) {
         LOG_WARN_S << "Binning_x is bigger than the maximum allowed value! Setpoint: "
-                   << _binning_x.get() << ". Maximum: " << max_binning_height << endl;
+                   << _binning_config.get().binning_x
+                   << ". Maximum: " << max_binning_height << endl;
         return false;
     }
-    else if (_binning_y.get() > max_binning_width) {
+    else if (_binning_config.get().binning_y > max_binning_width) {
         LOG_WARN_S << "Binning_y is bigger than the maximum allowed value! Setpoint: "
-                   << _binning_y.get() << ". Maximum: " << max_binning_width << endl;
+                   << _binning_config.get().binning_y
+                   << ". Maximum: " << max_binning_width << endl;
         return false;
     }
 
     Arena::SetNodeValue<int64_t>(m_device->GetNodeMap(),
         "BinningVertical",
-        _binning_x.get());
+        _binning_config.get().binning_x);
 
     Arena::SetNodeValue<int64_t>(m_device->GetNodeMap(),
         "BinningHorizontal",
-        _binning_y.get());
+        _binning_config.get().binning_y);
 
     Arena::SetNodeValue<gcstring>(m_device->GetNodeMap(),
         "BinningVerticalMode",
-        _binning_type.get().c_str());
+        binning_mode_name.at(_binning_config.get().vertical_mode).c_str());
 
     Arena::SetNodeValue<gcstring>(m_device->GetNodeMap(),
         "BinningHorizontalMode",
-        _binning_type.get().c_str());
+        binning_mode_name.at(_binning_config.get().horizontal_mode).c_str());
 
-    if (_binning_y.get() !=
+    if (_binning_config.get().binning_y !=
             Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(), "BinningVertical") ||
-        _binning_x.get() !=
+        _binning_config.get().binning_x !=
             Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(), "BinningHorizontal")) {
         LOG_WARN_S << "Failed setting binning parameters";
         return false;
@@ -425,7 +442,8 @@ bool Task::decimationConfiguration()
     GenApi::CEnumerationPtr decimation_selector_node =
         m_device->GetNodeMap()->GetNode("DecimationSelector");
     GenApi::CEnumEntryPtr decimation_sensor_entry =
-        decimation_selector_node->GetEntryByName(_decimation_selector.get().c_str());
+        decimation_selector_node->GetEntryByName(
+            decimation_selector_name.at(_decimation_config.get().selector).c_str());
     if (decimation_sensor_entry == 0 || !GenApi::IsAvailable(decimation_sensor_entry)) {
         LOG_WARN_S << "Sensor decimation not supported by device: not available from "
                       "DecimationSelector"
@@ -433,10 +451,11 @@ bool Task::decimationConfiguration()
         return false;
     }
 
-    LOG_INFO_S << "Set decimation mode to: " << _decimation_selector.get() << endl;
+    LOG_INFO_S << "Set decimation mode to: "
+               << decimation_selector_name.at(_decimation_config.get().selector) << endl;
     Arena::SetNodeValue<gcstring>(m_device->GetNodeMap(),
         "DecimationSelector",
-        _decimation_selector.get().c_str());
+        decimation_selector_name.at(_decimation_config.get().selector).c_str());
 
     // Check if the nodes for the height and width of the bin are available
     //    For rare case where sensor decimation is unsupported but still appears as
@@ -458,39 +477,40 @@ bool Task::decimationConfiguration()
     int64_t max_decimation_height = decimation_vertical_node->GetMax();
     int64_t max_decimation_width = decimation_horizontal_node->GetMax();
 
-    if (_decimation_x.get() > max_decimation_height) {
+    if (_decimation_config.get().decimation_x > max_decimation_height) {
         LOG_WARN_S << "Decimation_x is bigger than the maximum allowed value! Setpoint: "
-                   << _decimation_x.get() << ". Maximum: " << max_decimation_height
-                   << endl;
+                   << _decimation_config.get().decimation_x
+                   << ". Maximum: " << max_decimation_height << endl;
         return false;
     }
-    else if (_decimation_y.get() > max_decimation_width) {
+    else if (_decimation_config.get().decimation_y > max_decimation_width) {
         LOG_WARN_S << "Decimation_y is bigger than the maximum allowed value! Setpoint: "
-                   << _decimation_y.get() << ". Maximum: " << max_decimation_width
-                   << endl;
+                   << _decimation_config.get().decimation_y
+                   << ". Maximum: " << max_decimation_width << endl;
         return false;
     }
 
     Arena::SetNodeValue<int64_t>(m_device->GetNodeMap(),
         "DecimationVertical",
-        _decimation_x.get());
+        _decimation_config.get().decimation_x);
 
     Arena::SetNodeValue<int64_t>(m_device->GetNodeMap(),
         "DecimationHorizontal",
-        _decimation_y.get());
+        _decimation_config.get().decimation_y);
 
     Arena::SetNodeValue<gcstring>(m_device->GetNodeMap(),
         "DecimationVerticalMode",
-        _decimation_type.get().c_str());
+        decimation_mode_name.at(_decimation_config.get().vertical_mode).c_str());
 
     Arena::SetNodeValue<gcstring>(m_device->GetNodeMap(),
         "DecimationHorizontalMode",
-        _decimation_type.get().c_str());
+        decimation_mode_name.at(_decimation_config.get().horizontal_mode).c_str());
 
-    if (_decimation_y.get() !=
+    if (_decimation_config.get().decimation_y !=
             Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(), "DecimationVertical") ||
-        _decimation_x.get() != Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(),
-                                   "DecimationHorizontal")) {
+        _decimation_config.get().decimation_x !=
+            Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(),
+                "DecimationHorizontal")) {
         return true;
     }
 
@@ -526,19 +546,21 @@ bool Task::dimensionsConfiguration()
     }
 
     LOG_INFO_S << "Setting Width." << endl;
-    width->SetValue(_width.get());
+    width->SetValue(_image_config.get().width);
     LOG_INFO_S << "Setting Height." << endl;
-    height->SetValue(_height.get());
+    height->SetValue(_image_config.get().height);
     LOG_INFO_S << "Setting Offset X." << endl;
-    offset_x->SetValue(_offset_x.get());
+    offset_x->SetValue(_image_config.get().offset_x);
     LOG_INFO_S << "Setting Offset Y." << endl;
-    offset_y->SetValue(_offset_y.get());
+    offset_y->SetValue(_image_config.get().offset_y);
 
-    if (_width.get() != Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(), "Width") ||
-        _height.get() != Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(), "Height") ||
-        _offset_x.get() !=
+    if (_image_config.get().width !=
+            Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(), "Width") ||
+        _image_config.get().height !=
+            Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(), "Height") ||
+        _image_config.get().offset_x !=
             Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(), "OffsetX") ||
-        _offset_y.get() !=
+        _image_config.get().offset_y !=
             Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(), "OffsetY")) {
         return false;
     }
@@ -547,29 +569,31 @@ bool Task::dimensionsConfiguration()
 
 bool Task::exposureConfiguration()
 {
-    LOG_INFO_S << "Setting auto exposure to " << _exposure_auto.get() << endl;
+    LOG_INFO_S << "Setting auto exposure to "
+               << exposure_auto_name.at(_image_config.get().exposure_auto) << endl;
     Arena::SetNodeValue<gcstring>(m_device->GetNodeMap(),
         "ExposureAuto",
-        _exposure_auto.get().c_str());
+        exposure_auto_name.at(_image_config.get().exposure_auto).c_str());
 
     GenApi::CEnumerationPtr exposure_auto =
         m_device->GetNodeMap()->GetNode("ExposureAuto");
 
-    if (auto current = exposure_auto->GetCurrentEntry()->GetSymbolic() !=
-                       _exposure_auto.get().c_str()) {
-        LOG_WARN_S << "ExposureAuto value differs setpoint: " << _exposure_auto.get()
+    auto current = exposure_auto->GetCurrentEntry()->GetSymbolic();
+    if (current != exposure_auto_name.at(_image_config.get().exposure_auto).c_str()) {
+        LOG_WARN_S << "ExposureAuto value differs setpoint: "
+                   << exposure_auto_name.at(_image_config.get().exposure_auto)
                    << " current: " << current << endl;
         return false;
     }
 
-    if (_exposure_auto.get() == "Off") {
+    if (_image_config.get().exposure_auto == ExposureAuto::EXPOSURE_AUTO_OFF) {
         LOG_INFO_S << "Setting exposure time to: "
-                    << _exposure_time.get().toMicroseconds() << "us" << endl;
+                   << _image_config.get().exposure_time.toMicroseconds() << "us" << endl;
         GenApi::CFloatPtr exposure_time = m_device->GetNodeMap()->GetNode("ExposureTime");
 
         auto max_exposure_time = exposure_time->GetMax();
         auto min_exposure_time = exposure_time->GetMin();
-        auto setpoint = _exposure_time.get().toMicroseconds();
+        auto setpoint = _image_config.get().exposure_time.toMicroseconds();
 
         if (setpoint > max_exposure_time) {
             LOG_WARN_S << "Exposure time exceeds maximum value. Setting Exposure to "
@@ -583,9 +607,10 @@ bool Task::exposureConfiguration()
                        << min_exposure_time << "us" << endl;
             setpoint = min_exposure_time;
         }
-        exposure_time->SetValue(setpoint);
+        exposure_time->SetValue(static_cast<double>(setpoint));
 
-        if (auto current = exposure_time->GetValue() != setpoint) {
+        auto current = exposure_time->GetValue();
+        if (abs(current - setpoint) >= 10) {
             LOG_WARN_S << "Exposure Time value differs from setpoint: " << setpoint
                        << " current: " << current << endl;
             return false;
@@ -614,14 +639,15 @@ bool Task::acquisitionConfiguration()
 
     GenApi::CFloatPtr pExposureTime = m_device->GetNodeMap()->GetNode("ExposureTime");
     LOG_INFO_S << "Exposure Time " << pExposureTime->GetValue() << " milliseconds"
-                << std::endl;
+               << std::endl;
 
-    acquisition_frame_rate->SetValue(_frame_rate.get());
+    acquisition_frame_rate->SetValue(_image_config.get().frame_rate);
 
-    if (auto current = Arena::GetNodeValue<double>(m_device->GetNodeMap(),
-                           "AcquisitionFrameRate") != _frame_rate.get()) {
-        LOG_ERROR_S << "Frame rate was not set correctly. Setpoint: " << _frame_rate.get()
-                    << ". Current: " << current << endl;
+    auto current =
+        Arena::GetNodeValue<double>(m_device->GetNodeMap(), "AcquisitionFrameRate");
+    if (abs(current - _image_config.get().frame_rate) >= 0.1) {
+        LOG_ERROR_S << "Frame rate was not set correctly. Setpoint: "
+                    << _image_config.get().frame_rate << ". Current: " << current << endl;
         return false;
     }
 
@@ -646,10 +672,12 @@ bool Task::factoryReset()
     }
     m_system->DestroyDevice(m_device);
 
-    if (!connectToCamera())
+    if (!connectToCamera()) {
         return false;
+    }
 
-    if (!switchOverAccess())
+    if (!switchOverAccess()) {
         return false;
+    }
     return true;
 }
