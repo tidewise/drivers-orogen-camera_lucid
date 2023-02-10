@@ -82,26 +82,27 @@ namespace camera_lucid {
 
     struct ImageConfig {
         /** Timeout for frame acquisition.*/
-        base::Time frame_timeout;
+        base::Time frame_timeout = base::Time::fromMilliseconds(500);
         /** Specifies the frequency in which frames are acquired. Note that TriggerMode
          * must be off for this parameter to take effect.*/
-        double frame_rate;
+        double frame_rate = 15.0;
         /** Image format*/
-        base::samples::frame::frame_mode_t format;
+        base::samples::frame::frame_mode_t format =
+            base::samples::frame::frame_mode_t::MODE_BAYER_BGGR;
         /** Depth*/
-        uint8_t depth;
+        uint8_t depth = 8;
         /** Sets the automatic exposure mode.*/
         ExposureAuto exposure_auto = EXPOSURE_AUTO_CONTINUOUS;
         /** Controls the device exposure time.*/
-        base::Time exposure_time;
+        base::Time exposure_time = base::Time::fromMicroseconds(8000);
         /** Width of the image provided by the device in pixels.*/
-        int width;
+        int width = 2448;
         /** Height of the image provided by the device in pixels.*/
-        int height;
+        int height = 2048;
         /** Horizontal offset from the origin to the region of interest in pixels.*/
-        int offset_x;
+        int offset_x = 0;
         /** Vertical offset from the origin to the region of interest in pixels.*/
-        int offset_y;
+        int offset_y = 0;
     };
 }
 
