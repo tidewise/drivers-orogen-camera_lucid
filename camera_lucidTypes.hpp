@@ -1,6 +1,7 @@
 #ifndef camera_lucid_TYPES_HPP
 #define camera_lucid_TYPES_HPP
 
+#include "Arena/ArenaApi.h"
 #include <base/Time.hpp>
 #include <base/samples/Frame.hpp>
 #include <string>
@@ -103,6 +104,23 @@ namespace camera_lucid {
         int offset_x = 0;
         /** Vertical offset from the origin to the region of interest in pixels.*/
         int offset_y = 0;
+    };
+
+    struct ImageFrame {
+        Arena::IImage* image;
+        Arena::IDevice* device;
+        ImageFrame(Arena::IImage* v_image, Arena::IDevice* v_device)
+            : image(v_image)
+            , device(v_device)
+        {
+        }
+        ~ImageFrame()
+        {
+            device->RequeueBuffer(image);
+        }
+        void requeueBuffer(){
+            device->RequeueBuffer(image);
+        }
     };
 }
 

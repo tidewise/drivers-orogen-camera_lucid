@@ -24,32 +24,20 @@ Task::~Task()
 
 bool Task::configureHook()
 {
+    if (!TaskBase::configureHook()) {
+        return false;
+    }
+
     try {
-        if (!TaskBase::configureHook()) {
-            return false;
-        }
-
-        if (!connectToCamera()) {
-            return false;
-        }
-
-        if (!switchOverAccess()) {
-            return false;
-        }
-
-        if (!configureCamera()) {
-            return false;
-        }
-        return true;
+        connectToCamera();
+        switchOverAccess();
+        configureCamera();
     }
     catch (GenICam::GenericException& ge) {
         LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
-        return false;
+        throw std::runtime_error(ge.what());
     }
-    catch (std::exception& ex) {
-        LOG_ERROR_S << "Standard exception thrown: " << ex.what() << endl;
-        return false;
-    }
+    return true;
 }
 
 bool Task::startHook()
@@ -57,7 +45,9 @@ bool Task::startHook()
     if (!TaskBase::startHook()) {
         return false;
     }
-    startCamera();
+
+    LOG_INFO_S << "Starting frame acquisition." << endl;
+    m_device->StartStream();
     return true;
 }
 void Task::updateHook()
@@ -80,9 +70,11 @@ void Task::cleanupHook()
     TaskBase::cleanupHook();
     m_system->DestroyDevice(m_device);
     Arena::CloseSystem(m_system);
+    m_system = nullptr;
+    m_device = nullptr;
 }
 
-bool Task::connectToCamera()
+void Task::connectToCamera()
 {
     LOG_INFO_S << "Looking for camera" << endl;
     m_ip = _ip.get();
@@ -100,7 +92,7 @@ bool Task::connectToCamera()
         if (m_ip.compare(device.IpAddressStr()) == 0) {
             m_device = m_system->CreateDevice(device);
             LOG_INFO_S << "Connected to camera" << endl;
-            return true;
+            return;
         }
     }
     string cameras;
@@ -110,10 +102,10 @@ bool Task::connectToCamera()
     }
     LOG_ERROR_S << "Camera " << _ip.get() << " not found. Found cameras: " << cameras
                 << endl;
-    return false;
+    throw runtime_error("Camera not found.");
 }
 
-bool Task::switchOverAccess()
+void Task::switchOverAccess()
 {
     LOG_INFO_S << "Checking Camera Read/Write Access." << endl;
     // Retrieve DeviceAccessStatus
@@ -128,7 +120,7 @@ bool Task::switchOverAccess()
             "CcpSwitchoverKey",
             m_switchover_key);
         LOG_INFO_S << "Task already has the Camera Read/Write Access." << endl;
-        return true;
+        return;
     }
 
     // Apply the correct switchover key and change the DeviceAccessStatus to ReadWrite
@@ -147,24 +139,20 @@ bool Task::switchOverAccess()
             "DeviceAccessStatus");
     if (device_access_status == "ReadWrite") {
         LOG_INFO_S << "Task retrieved the Camera Read/Write Access." << endl;
-        return true;
+        return;
     }
 
     LOG_WARN_S << "Task failed to retrieved the Camera Read/Write Access." << endl;
-    return false;
+    throw runtime_error("Task failed to retrieved the Camera Read/Write Access.");
 }
 
-bool Task::configureCamera()
+void Task::configureCamera()
 {
     LOG_INFO_S << "Performing Factory Reset" << endl;
-    if (!factoryReset()) {
-        return false;
-    }
+    factoryReset();
 
     LOG_INFO_S << "Configuring camera." << endl;
-    if (!acquisitionConfiguration()) {
-        return false;
-    }
+    acquisitionConfiguration();
 
     LOG_INFO_S << "Setting StreamBufferHandlingMode." << endl;
     Arena::SetNodeValue<GenICam::gcstring>(m_device->GetTLStreamNodeMap(),
@@ -194,21 +182,13 @@ bool Task::configureCamera()
 
     // If the camera is acquiring images, AcquisitionStop must be called before adjusting
     // binning settings.
-    if (!binningConfiguration()) {
-        return false;
-    }
+    binningConfiguration();
 
-    if (!decimationConfiguration()) {
-        return false;
-    }
+    decimationConfiguration();
 
-    if (!dimensionsConfiguration()) {
-        return false;
-    }
+    dimensionsConfiguration();
 
-    if (!exposureConfiguration()) {
-        return false;
-    }
+    exposureConfiguration();
 
     Frame* frame = new Frame(_image_config.get().width,
         _image_config.get().height,
@@ -217,30 +197,23 @@ bool Task::configureCamera()
         0,
         0);
     m_frame.reset(frame);
-
-    return true;
-}
-
-void Task::startCamera()
-{
-    LOG_INFO_S << "Starting frame acquisition." << endl;
-    m_device->StartStream();
 }
 
 void Task::acquireFrame()
 {
     try {
-        Arena::IImage* image =
-            m_device->GetImage(_image_config.get().frame_timeout.toMilliseconds());
-        if (image->IsIncomplete()) {
+        ImageFrame frame(
+            m_device->GetImage(_image_config.get().frame_timeout.toMilliseconds()),
+            m_device);
+        if (frame.image->IsIncomplete()) {
             LOG_ERROR_S << "Image is not complete!! " << endl;
-            m_device->RequeueBuffer(image);
+            return;
         }
 
-        size_t size = image->GetSizeFilled();
-        size_t width = image->GetWidth();
-        size_t height = image->GetHeight();
-        PfncFormat pixel_format = static_cast<PfncFormat>(image->GetPixelFormat());
+        size_t size = frame.image->GetSizeFilled();
+        size_t width = frame.image->GetWidth();
+        size_t height = frame.image->GetHeight();
+        PfncFormat pixel_format = static_cast<PfncFormat>(frame.image->GetPixelFormat());
         uint8_t data_depth = 0U;
         auto format = convertPixelFormatToFrameMode(pixel_format, data_depth);
 
@@ -252,17 +225,14 @@ void Task::acquireFrame()
         out_frame->time = base::Time::now();
         out_frame->received_time = out_frame->time;
 
-        out_frame->setImage(image->GetData(), size);
+        out_frame->setImage(frame.image->GetData(), size);
         out_frame->setStatus(STATUS_VALID);
         m_frame.reset(out_frame);
-        m_device->RequeueBuffer(image);
         _frame.write(m_frame);
     }
     catch (GenICam::GenericException& ge) {
         LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
-    }
-    catch (std::exception& ex) {
-        LOG_ERROR_S << "Standard exception thrown: " << ex.what() << endl;
+        throw runtime_error(ge.what());
     }
 }
 
@@ -345,7 +315,7 @@ string Task::convertFrameModeToPixelFormat(frame_mode_t format, uint8_t data_dep
     }
 }
 
-bool Task::binningConfiguration()
+void Task::binningConfiguration()
 {
     // Initial check if sensor binning is supported.
     //    Entry may not be in XML file. Entry may be in the file but set to
@@ -360,7 +330,8 @@ bool Task::binningConfiguration()
         LOG_WARN_S << "Sensor binning not supported by device: not available from "
                       "BinningSelector"
                    << endl;
-        return false;
+        throw runtime_error(
+            "Sensor binning not supported by device: not available from BinningSelector");
     }
 
     LOG_INFO_S << "Set binning mode to "
@@ -378,7 +349,8 @@ bool Task::binningConfiguration()
         LOG_WARN_S << "Sensor binning not supported by device: BinningVertical or "
                       "BinningHorizontal not available."
                    << endl;
-        return false;
+        throw runtime_error("Sensor binning not supported by device: BinningVertical or "
+                            "BinningHorizontal not available.");
     }
 
     // Find max for bin height & width.
@@ -395,13 +367,13 @@ bool Task::binningConfiguration()
         LOG_WARN_S << "Binning_x is bigger than the maximum allowed value! Setpoint: "
                    << _binning_config.get().binning_x
                    << ". Maximum: " << max_binning_height << endl;
-        return false;
+        throw runtime_error("Binning_x is bigger than the maximum allowed value.");
     }
     else if (_binning_config.get().binning_y > max_binning_width) {
         LOG_WARN_S << "Binning_y is bigger than the maximum allowed value! Setpoint: "
                    << _binning_config.get().binning_y
                    << ". Maximum: " << max_binning_width << endl;
-        return false;
+        throw runtime_error("Binning_y is bigger than the maximum allowed value.");
     }
 
     Arena::SetNodeValue<int64_t>(m_device->GetNodeMap(),
@@ -424,14 +396,12 @@ bool Task::binningConfiguration()
             Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(), "BinningVertical") ||
         _binning_config.get().binning_x !=
             Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(), "BinningHorizontal")) {
-        LOG_WARN_S << "Failed setting binning parameters";
-        return false;
+        LOG_WARN_S << "Failed setting binning parameters.";
+        throw runtime_error("Failed setting binning parameters.");
     }
-
-    return true;
 }
 
-bool Task::decimationConfiguration()
+void Task::decimationConfiguration()
 {
 
     // Initial check if sensor decimation is supported.
@@ -446,9 +416,10 @@ bool Task::decimationConfiguration()
             decimation_selector_name.at(_decimation_config.get().selector).c_str());
     if (decimation_sensor_entry == 0 || !GenApi::IsAvailable(decimation_sensor_entry)) {
         LOG_WARN_S << "Sensor decimation not supported by device: not available from "
-                      "DecimationSelector"
+                      "DecimationSelector."
                    << endl;
-        return false;
+        throw runtime_error("Sensor decimation not supported by device: not available "
+                            "from DecimationSelector.");
     }
 
     LOG_INFO_S << "Set decimation mode to: "
@@ -466,7 +437,8 @@ bool Task::decimationConfiguration()
         LOG_WARN_S << "Sensor decimation not supported by device: DecimationVertical or "
                       "DecimationHorizontal not available."
                    << endl;
-        return false;
+        throw runtime_error("Sensor decimation not supported by device: "
+                            "DecimationVertical or DecimationHorizontal not available.");
     }
 
     GenApi::CIntegerPtr decimation_vertical_node =
@@ -481,13 +453,13 @@ bool Task::decimationConfiguration()
         LOG_WARN_S << "Decimation_x is bigger than the maximum allowed value! Setpoint: "
                    << _decimation_config.get().decimation_x
                    << ". Maximum: " << max_decimation_height << endl;
-        return false;
+        throw runtime_error("Decimation_x is bigger than the maximum allowed value");
     }
     else if (_decimation_config.get().decimation_y > max_decimation_width) {
         LOG_WARN_S << "Decimation_y is bigger than the maximum allowed value! Setpoint: "
                    << _decimation_config.get().decimation_y
                    << ". Maximum: " << max_decimation_width << endl;
-        return false;
+        throw runtime_error("Decimation_y is bigger than the maximum allowed value.");
     }
 
     Arena::SetNodeValue<int64_t>(m_device->GetNodeMap(),
@@ -511,13 +483,12 @@ bool Task::decimationConfiguration()
         _decimation_config.get().decimation_x !=
             Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(),
                 "DecimationHorizontal")) {
-        return true;
+        LOG_WARN_S << "Failed setting decimation parameters.";
+        throw runtime_error("Failed setting decimation parameters.");
     }
-
-    return true;
 }
 
-bool Task::dimensionsConfiguration()
+void Task::dimensionsConfiguration()
 {
     LOG_INFO_S << "Setting Dimensions." << endl;
     GenApi::CIntegerPtr width = m_device->GetNodeMap()->GetNode("Width");
@@ -526,23 +497,23 @@ bool Task::dimensionsConfiguration()
     GenApi::CIntegerPtr offset_y = m_device->GetNodeMap()->GetNode("OffsetY");
 
     if (!width || !GenApi::IsReadable(width) || !GenApi::IsWritable(width)) {
-        LOG_ERROR_S << "Width node not found/readable/writable" << endl;
-        return false;
+        LOG_ERROR_S << "Width node not found/readable/writable." << endl;
+        throw runtime_error("Width node not found/readable/writable.");
     }
 
     if (!height || !GenApi::IsReadable(height) || !GenApi::IsWritable(height)) {
-        LOG_ERROR_S << "Height node not found/readable/writable" << endl;
-        return false;
+        LOG_ERROR_S << "Height node not found/readable/writable." << endl;
+        throw runtime_error("Height node not found/readable/writable.");
     }
 
     if (!offset_x || !GenApi::IsReadable(offset_x) || !GenApi::IsWritable(offset_x)) {
-        LOG_ERROR_S << "Offset X node not found/readable/writable" << endl;
-        return false;
+        LOG_ERROR_S << "Offset X node not found/readable/writable." << endl;
+        throw runtime_error("Offset X node not found/readable/writable.");
     }
 
     if (!offset_y || !GenApi::IsReadable(offset_y) || !GenApi::IsWritable(offset_y)) {
-        LOG_ERROR_S << "Offset Y node not found/readable/writable" << endl;
-        return false;
+        LOG_ERROR_S << "Offset Y node not found/readable/writable." << endl;
+        throw runtime_error("Offset Y node not found/readable/writable.");
     }
 
     LOG_INFO_S << "Setting Width." << endl;
@@ -562,12 +533,11 @@ bool Task::dimensionsConfiguration()
             Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(), "OffsetX") ||
         _image_config.get().offset_y !=
             Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(), "OffsetY")) {
-        return false;
+        throw runtime_error("Width/Heigth/Offset not properly configured.");
     }
-    return true;
 }
 
-bool Task::exposureConfiguration()
+void Task::exposureConfiguration()
 {
     LOG_INFO_S << "Setting auto exposure to "
                << exposure_auto_name.at(_image_config.get().exposure_auto) << endl;
@@ -583,7 +553,7 @@ bool Task::exposureConfiguration()
         LOG_WARN_S << "ExposureAuto value differs setpoint: "
                    << exposure_auto_name.at(_image_config.get().exposure_auto)
                    << " current: " << current << endl;
-        return false;
+        throw runtime_error("ExposureAuto value differs.");
     }
 
     if (_image_config.get().exposure_auto == ExposureAuto::EXPOSURE_AUTO_OFF) {
@@ -613,14 +583,12 @@ bool Task::exposureConfiguration()
         if (abs(current - setpoint) >= 10) {
             LOG_WARN_S << "Exposure Time value differs from setpoint: " << setpoint
                        << " current: " << current << endl;
-            return false;
+            throw runtime_error("Exposure Time value differs.");
         }
     }
-
-    return true;
 }
 
-bool Task::acquisitionConfiguration()
+void Task::acquisitionConfiguration()
 {
     LOG_INFO_S << "Configuring Acquisition." << endl;
 
@@ -648,13 +616,11 @@ bool Task::acquisitionConfiguration()
     if (abs(current - _image_config.get().frame_rate) >= 0.1) {
         LOG_ERROR_S << "Frame rate was not set correctly. Setpoint: "
                     << _image_config.get().frame_rate << ". Current: " << current << endl;
-        return false;
+        throw runtime_error("Frame rate value differs.");
     }
-
-    return true;
 }
 
-bool Task::factoryReset()
+void Task::factoryReset()
 {
     GenApi::CCommandPtr trigger_software =
         m_device->GetNodeMap()->GetNode("DeviceFactoryReset");
@@ -671,13 +637,6 @@ bool Task::factoryReset()
         }
     }
     m_system->DestroyDevice(m_device);
-
-    if (!connectToCamera()) {
-        return false;
-    }
-
-    if (!switchOverAccess()) {
-        return false;
-    }
-    return true;
+    connectToCamera();
+    switchOverAccess();
 }

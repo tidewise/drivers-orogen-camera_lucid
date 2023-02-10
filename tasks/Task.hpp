@@ -34,16 +34,12 @@ argument.
         friend class TaskBase;
 
     private:
-        std::string m_ip;
-        Arena::ISystem* m_system;
-        Arena::IDevice* m_device;
-        // GenICam::gcstring m_acquisition_mode_intial;
+        std::string m_ip = "";
+        Arena::ISystem* m_system = nullptr;
+        Arena::IDevice* m_device = nullptr;
         RTT::extras::ReadOnlyPointer<base::samples::frame::Frame> m_frame;
-
         // The switchover key to be used
         int64_t m_switchover_key = 0x1000;
-        template <typename F> bool applyCommand(F f);
-        void treatError();
 
     public:
         /** TaskContext constructor for Task
@@ -115,17 +111,16 @@ argument.
          */
         void cleanupHook();
 
-        bool connectToCamera();
-        bool switchOverAccess();
-        bool configureCamera();
-        bool factoryReset();
-        bool acquisitionConfiguration();
-        bool binningConfiguration();
-        bool decimationConfiguration();
-        bool dimensionsConfiguration();
-        bool exposureConfiguration();
+        void connectToCamera();
+        void switchOverAccess();
+        void configureCamera();
+        void factoryReset();
+        void acquisitionConfiguration();
+        void binningConfiguration();
+        void decimationConfiguration();
+        void dimensionsConfiguration();
+        void exposureConfiguration();
 
-        void startCamera();
         void acquireFrame();
         base::samples::frame::frame_mode_t convertPixelFormatToFrameMode(
             PfncFormat format,
