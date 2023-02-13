@@ -25,6 +25,8 @@ task_context "Task" do
     # Camera's IP
     property "ip", "/std/string"
 
+    property "camera_reset_timeout", "base/Time"
+
     # Binning Configuration:
     # columns and/or rows of pixels are combined to achieve a reduced overall image size
     # without changing the image's field of view. This feature may result in an increase

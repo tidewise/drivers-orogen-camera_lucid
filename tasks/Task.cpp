@@ -9,6 +9,35 @@ using namespace camera_lucid;
 using namespace base::samples::frame;
 using namespace GenICam;
 
+struct RequeueImageFrame {
+    Arena::IImage* image = nullptr;
+    Arena::IDevice* device = nullptr;
+    RequeueImageFrame()
+    {
+    }
+    RequeueImageFrame(Arena::IImage* v_image, Arena::IDevice* v_device)
+        : image(v_image)
+        , device(v_device)
+    {
+    }
+    ~RequeueImageFrame()
+    {
+        if (device != nullptr) {
+            device->RequeueBuffer(image);
+        }
+    }
+    void releaseBuffer()
+    {
+        device->RequeueBuffer(image);
+        device = nullptr;
+    }
+    void reset(Arena::IImage* v_image, Arena::IDevice* v_device)
+    {
+        image = v_image;
+        device = v_device;
+    }
+};
+
 Task::Task(string const& name)
     : TaskBase(name)
 {
@@ -29,6 +58,7 @@ bool Task::configureHook()
     }
 
     try {
+        m_system = Arena::OpenSystem();
         connectToCamera();
         switchOverAccess();
         configureCamera();
@@ -47,7 +77,14 @@ bool Task::startHook()
     }
 
     LOG_INFO_S << "Starting frame acquisition." << endl;
-    m_device->StartStream();
+    try {
+
+        m_device->StartStream();
+    }
+    catch (GenICam::GenericException& ge) {
+        LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
+        throw std::runtime_error(ge.what());
+    }
     return true;
 }
 void Task::updateHook()
@@ -58,18 +95,36 @@ void Task::updateHook()
 void Task::errorHook()
 {
     TaskBase::errorHook();
-    m_device->StopStream();
+    try {
+        m_device->StopStream();
+    }
+    catch (GenICam::GenericException& ge) {
+        LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
+        throw std::runtime_error(ge.what());
+    }
 }
 void Task::stopHook()
 {
     TaskBase::stopHook();
-    m_device->StopStream();
+    try {
+        m_device->StopStream();
+    }
+    catch (GenICam::GenericException& ge) {
+        LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
+        throw std::runtime_error(ge.what());
+    }
 }
 void Task::cleanupHook()
 {
     TaskBase::cleanupHook();
-    m_system->DestroyDevice(m_device);
-    Arena::CloseSystem(m_system);
+    try {
+        m_system->DestroyDevice(m_device);
+        Arena::CloseSystem(m_system);
+    }
+    catch (GenICam::GenericException& ge) {
+        LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
+        throw std::runtime_error(ge.what());
+    }
     m_system = nullptr;
     m_device = nullptr;
 }
@@ -78,14 +133,6 @@ void Task::connectToCamera()
 {
     LOG_INFO_S << "Looking for camera" << endl;
     m_ip = _ip.get();
-    try {
-        m_system = Arena::OpenSystem();
-    }
-    catch (GenICam::GenericException& ge) {
-        LOG_WARN_S << "Arena System was already on, closing it and reopening." << endl;
-        Arena::CloseSystem(m_system);
-        m_system = Arena::OpenSystem();
-    }
     m_system->UpdateDevices(100);
     vector<Arena::DeviceInfo> device_infos = m_system->GetDevices();
     for (auto device : device_infos) {
@@ -201,39 +248,41 @@ void Task::configureCamera()
 
 void Task::acquireFrame()
 {
+    RequeueImageFrame frame;
     try {
-        ImageFrame frame(
+        frame.reset(
             m_device->GetImage(_image_config.get().frame_timeout.toMilliseconds()),
             m_device);
-        if (frame.image->IsIncomplete()) {
-            LOG_ERROR_S << "Image is not complete!! " << endl;
-            return;
-        }
-
-        size_t size = frame.image->GetSizeFilled();
-        size_t width = frame.image->GetWidth();
-        size_t height = frame.image->GetHeight();
-        PfncFormat pixel_format = static_cast<PfncFormat>(frame.image->GetPixelFormat());
-        uint8_t data_depth = 0U;
-        auto format = convertPixelFormatToFrameMode(pixel_format, data_depth);
-
-        Frame* out_frame = m_frame.write_access();
-        if (width != out_frame->getWidth() || height != out_frame->getHeight() ||
-            format != out_frame->getFrameMode()) {
-            out_frame->init(width, height, data_depth, format, 0, size);
-        }
-        out_frame->time = base::Time::now();
-        out_frame->received_time = out_frame->time;
-
-        out_frame->setImage(frame.image->GetData(), size);
-        out_frame->setStatus(STATUS_VALID);
-        m_frame.reset(out_frame);
-        _frame.write(m_frame);
     }
     catch (GenICam::GenericException& ge) {
         LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
         throw runtime_error(ge.what());
     }
+
+    if (frame.image->IsIncomplete()) {
+        LOG_ERROR_S << "Image is not complete!! " << endl;
+        return;
+    }
+
+    size_t size = frame.image->GetSizeFilled();
+    size_t width = frame.image->GetWidth();
+    size_t height = frame.image->GetHeight();
+    PfncFormat pixel_format = static_cast<PfncFormat>(frame.image->GetPixelFormat());
+    uint8_t data_depth = 0U;
+    auto format = convertPixelFormatToFrameMode(pixel_format, data_depth);
+
+    Frame* out_frame = m_frame.write_access();
+    if (width != out_frame->getWidth() || height != out_frame->getHeight() ||
+        format != out_frame->getFrameMode()) {
+        out_frame->init(width, height, data_depth, format, 0, size);
+    }
+    out_frame->time = base::Time::now();
+    out_frame->received_time = out_frame->time;
+
+    out_frame->setImage(frame.image->GetData(), size);
+    out_frame->setStatus(STATUS_VALID);
+    m_frame.reset(out_frame);
+    _frame.write(m_frame);
 }
 
 frame_mode_t Task::convertPixelFormatToFrameMode(PfncFormat format, uint8_t& data_depth)
@@ -626,6 +675,7 @@ void Task::factoryReset()
         m_device->GetNodeMap()->GetNode("DeviceFactoryReset");
     trigger_software->Execute();
     bool online = false;
+    auto start_time = base::Time::now();
     while (!online) {
         try {
             GenApi::CIntegerPtr width = m_device->GetNodeMap()->GetNode("Width");
@@ -633,6 +683,10 @@ void Task::factoryReset()
             online = true;
         }
         catch (GenICam::TimeoutException& ex) {
+            if (base::Time::now() - start_time >= _camera_reset_timeout.get()) {
+                LOG_ERROR_S << "Timeout waiting for camera restart." << endl;
+                throw runtime_error("Timeout waiting for camera restart.");
+            }
             usleep(500000);
         }
     }

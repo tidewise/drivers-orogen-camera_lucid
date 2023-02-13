@@ -106,22 +106,6 @@ namespace camera_lucid {
         int offset_y = 0;
     };
 
-    struct ImageFrame {
-        Arena::IImage* image;
-        Arena::IDevice* device;
-        ImageFrame(Arena::IImage* v_image, Arena::IDevice* v_device)
-            : image(v_image)
-            , device(v_device)
-        {
-        }
-        ~ImageFrame()
-        {
-            device->RequeueBuffer(image);
-        }
-        void requeueBuffer(){
-            device->RequeueBuffer(image);
-        }
-    };
 }
 
 #endif
