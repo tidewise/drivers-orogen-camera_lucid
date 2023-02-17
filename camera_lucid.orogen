@@ -31,7 +31,6 @@ task_context "Task" do
     # columns and/or rows of pixels are combined to achieve a reduced overall image size
     # without changing the image's field of view. This feature may result in an increase
     # of camera s frame rate.
-
     property "binning_config", "camera_lucid/BinningConfig"
 
     # Decimation Configuration:
@@ -39,7 +38,6 @@ task_context "Task" do
     # without changing the image's field of view. This feature is also known as
     # "subsampling" due to the smaller sample size of pixels the camera transmits. This
     # feature may result in an increase of camera's frame rate.
-
     property "decimation_config", "camera_lucid/DecimationConfig"
 
     # Image Configuration

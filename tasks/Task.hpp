@@ -111,15 +111,15 @@ argument.
          */
         void cleanupHook();
 
-        void connectToCamera();
-        void switchOverAccess();
-        void configureCamera();
-        void factoryReset();
-        void acquisitionConfiguration();
-        void binningConfiguration();
-        void decimationConfiguration();
-        void dimensionsConfiguration();
-        void exposureConfiguration();
+        Arena::IDevice* connectToCamera(Arena::ISystem* system);
+        void switchOverAccess(Arena::IDevice* device);
+        void configureCamera(Arena::IDevice* device, Arena::ISystem* system);
+        void factoryReset(Arena::IDevice* device, Arena::ISystem* system);
+        void acquisitionConfiguration(Arena::IDevice* device);
+        void binningConfiguration(Arena::IDevice* device);
+        void decimationConfiguration(Arena::IDevice* device);
+        void dimensionsConfiguration(Arena::IDevice* device);
+        void exposureConfiguration(Arena::IDevice* device);
 
         void acquireFrame();
         base::samples::frame::frame_mode_t convertPixelFormatToFrameMode(
