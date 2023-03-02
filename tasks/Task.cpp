@@ -142,7 +142,7 @@ bool Task::configureHook()
     if (!TaskBase::configureHook()) {
         return false;
     }
-
+    m_last_message = base::Time::now();
     try {
         ArenaSystem system(Arena::OpenSystem());
         ArenaDevice device(connectToCamera(*system), *system);
@@ -185,6 +185,7 @@ void Task::updateHook()
 {
     TaskBase::updateHook();
     acquireFrame();
+    collectInfo();
 }
 void Task::errorHook()
 {
@@ -219,7 +220,7 @@ void Task::cleanupHook()
 Arena::IDevice* Task::connectToCamera(Arena::ISystem& system)
 {
     LOG_INFO_S << "Looking for camera" << endl;
-    m_ip = _ip.get();
+    m_ip = _camera_config.get().ip;
     system.UpdateDevices(100);
     vector<Arena::DeviceInfo> device_infos = system.GetDevices();
     for (auto device : device_infos) {
@@ -233,8 +234,8 @@ Arena::IDevice* Task::connectToCamera(Arena::ISystem& system)
         cameras.append(device.IpAddressStr());
         cameras.append(", ");
     }
-    LOG_ERROR_S << "Camera " << _ip.get() << " not found. Found cameras: " << cameras
-                << endl;
+    LOG_ERROR_S << "Camera " << _camera_config.get().ip
+                << " not found. Found cameras: " << cameras << endl;
     throw runtime_error("Camera not found.");
 }
 
@@ -762,11 +763,60 @@ void Task::factoryReset(Arena::IDevice* device, Arena::ISystem& system)
             online = true;
         }
         catch (GenICam::TimeoutException& ex) {
-            if (base::Time::now() - start_time >= _camera_reset_timeout.get()) {
+            if (base::Time::now() - start_time >=
+                _camera_config.get().camera_reset_timeout) {
                 LOG_ERROR_S << "Timeout waiting for camera restart." << endl;
                 throw runtime_error("Timeout waiting for camera restart.");
             }
             usleep(500000);
         }
+    }
+}
+
+void Task::collectInfo()
+{
+    auto current_time = base::Time::now();
+
+    if (current_time - m_last_message >= _camera_config.get().update_info) {
+
+        LOG_INFO_S << "Setting device temperature selector to "
+                   << device_temperature_selector_name.at(
+                          _camera_config.get().temperature_selector)
+                   << endl;
+        camera_lucid::CameraInfo info_message;
+        try {
+            Arena::SetNodeValue<gcstring>(m_device->GetNodeMap(),
+                "DeviceTemperatureSelector",
+                device_temperature_selector_name
+                    .at(_camera_config.get().temperature_selector)
+                    .c_str());
+
+            GenApi::CEnumerationPtr temperature_selector =
+                m_device->GetNodeMap()->GetNode("DeviceTemperatureSelector");
+
+            auto current = temperature_selector->GetCurrentEntry()->GetSymbolic();
+            if (current != device_temperature_selector_name
+                               .at(_camera_config.get().temperature_selector)
+                               .c_str()) {
+                LOG_WARN_S << "DeviceTemperatureSelector value differs setpoint: "
+                           << device_temperature_selector_name.at(
+                                  _camera_config.get().temperature_selector)
+                           << " current: " << current << endl;
+                throw runtime_error("DeviceTemperatureSelector value differs.");
+            }
+            // get DeviceTemperature
+            LOG_INFO_S << "Acquiring temperature from "
+                       << device_temperature_selector_name.at(
+                              _camera_config.get().temperature_selector)
+                       << endl;
+            info_message.temperature =
+                Arena::GetNodeValue<double>(m_device->GetNodeMap(), "DeviceTemperature");
+        }
+        catch (GenICam::GenericException& ge) {
+            LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
+            throw runtime_error(ge.what());
+        }
+        _info.write(info_message);
+        m_last_message = current_time;
     }
 }

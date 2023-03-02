@@ -22,10 +22,9 @@ import_types_from "base"
 task_context "Task" do
     needs_configuration
 
-    # Camera's IP
-    property "ip", "/std/string"
-
-    property "camera_reset_timeout", "base/Time"
+    # Camera Configuration:
+    # Ip, reset timeout, and update info frequency
+    property "camera_config", "camera_lucid/CameraConfig"
 
     # Binning Configuration:
     # columns and/or rows of pixels are combined to achieve a reduced overall image size
@@ -44,5 +43,6 @@ task_context "Task" do
     property "image_config", "camera_lucid/ImageConfig"
 
     output_port "frame", ro_ptr("base/samples/frame/Frame")
+    output_port "info", "camera_lucid/CameraInfo"
     periodic 0.01
 end

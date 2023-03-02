@@ -10,16 +10,19 @@ describe OroGen.camera_lucid.Task do
     it "starts and gets a frame" do
         task = create_configure_and_start_task
 
-        output = expect_execution.timeout(1.0).to do
-            have_one_new_sample(task.frame_port)
+        output = expect_execution.timeout(1.5).to do
+            [have_one_new_sample(task.frame_port),
+             have_one_new_sample(task.info_port)]
         end
 
         puts "Size: "
-        pp output.size
+        pp output[0].size
         puts "Frame mode: "
-        pp output.frame_mode
+        pp output[0].frame_mode
         puts "Data depth:"
-        pp output.data_depth
+        pp output[0].data_depth
+        puts "Temperature:"
+        pp output[1].temperature
         puts "Does the output looks OK ?"
         ask_ok
     end
@@ -30,15 +33,18 @@ describe OroGen.camera_lucid.Task do
 
         task = create_configure_and_start_task
         output = expect_execution.to do
-            have_one_new_sample(task.frame_port)
+            [have_one_new_sample(task.frame_port),
+             have_one_new_sample(task.info_port)]
         end
 
         puts "Size: "
-        pp output.size
+        pp output[0].size
         puts "Frame mode: "
-        pp output.frame_mode
+        pp output[0].frame_mode
         puts "Data depth:"
-        pp output.data_depth
+        pp output[0].data_depth
+        puts "Temperature:"
+        pp output[1].temperature
         puts "Does the output looks OK ?"
         ask_ok
     end
@@ -50,15 +56,18 @@ describe OroGen.camera_lucid.Task do
 
         task = create_configure_and_start_task
         output = expect_execution.to do
-            have_one_new_sample(task.frame_port)
+            [have_one_new_sample(task.frame_port),
+             have_one_new_sample(task.info_port)]
         end
 
         puts "Size: "
-        pp output.size
+        pp output[0].size
         puts "Frame mode: "
-        pp output.frame_mode
+        pp output[0].frame_mode
         puts "Data depth:"
-        pp output.data_depth
+        pp output[0].data_depth
+        puts "Temperature:"
+        pp output[1].temperature
         puts "Does the output looks OK ?"
         ask_ok
     end
@@ -76,8 +85,10 @@ describe OroGen.camera_lucid.Task do
                   .deployed_as("camera_lucid_task")
         )
 
-        task.properties.ip = "10.1.1.23"
-        task.properties.camera_reset_timeout = Time.at(50)
+        task.properties.camera_config = Types.camera_lucid.CameraConfig.new
+        task.properties.camera_config.ip = "10.1.1.24"
+        task.properties.camera_config.camera_reset_timeout = Time.at(50)
+        task.properties.camera_config.update_info = Time.at(1)
         task.properties.image_config = Types.camera_lucid.ImageConfig.new
         task.properties.image_config.frame_timeout = Time.at(0.2)
         task.properties.image_config.frame_rate = 21.0

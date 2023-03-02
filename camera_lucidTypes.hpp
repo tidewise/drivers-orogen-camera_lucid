@@ -45,6 +45,12 @@ namespace camera_lucid {
     };
     static std::vector<std::string> exposure_auto_name = {"Off", "Once", "Continuous"};
 
+    enum DeviceTemperatureSelector {
+        DEVICE_TEMPERATURE_SELECTOR_SENSOR = 0,
+        DEVICE_TEMPERATURE_SELECTOR_TEC = 1
+    };
+    static std::vector<std::string> device_temperature_selector_name = {"Sensor", "TEC"};
+
     struct BinningConfig {
         /** Selects which binning engine is controlled by the BinningHorizontal and
          * BinningVertical features. */
@@ -106,6 +112,22 @@ namespace camera_lucid {
         int offset_y = 0;
     };
 
+    struct CameraConfig {
+        /** Camera's ip*/
+        std::string ip;
+        /** Timeout after factory reset*/
+        base::Time camera_reset_timeout = base::Time::fromSeconds(50);
+        /** Period of info update (such as temperature, pressure...)*/
+        base::Time update_info = base::Time::fromSeconds(1);
+        /** Choose the temperature sensor*/
+        DeviceTemperatureSelector temperature_selector =
+            DeviceTemperatureSelector::DEVICE_TEMPERATURE_SELECTOR_SENSOR;
+    };
+
+    struct CameraInfo {
+        /** Camera's temperature from Sensor mode*/
+        float temperature = 0;
+    };
 }
 
 #endif
