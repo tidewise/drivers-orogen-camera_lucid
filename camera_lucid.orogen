@@ -44,5 +44,5 @@ task_context "Task" do
     property "image_config", "camera_lucid/ImageConfig"
 
     output_port "frame", ro_ptr("base/samples/frame/Frame")
-    periodic 0.1
+    periodic 0.01
 end
