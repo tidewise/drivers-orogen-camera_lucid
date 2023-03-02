@@ -101,6 +101,12 @@ describe OroGen.camera_lucid.Task do
         task.properties.image_config.offset_x = 0
         task.properties.image_config.offset_y = 0
 
+        task.properties.analog_controller_config = Types.camera_lucid
+                                                        .AnalogControllerConfig.new
+        task.properties.analog_controller_config.gain_auto = "GAIN_AUTO_OFF"
+        task.properties.analog_controller_config.gain_selector = "GAIN_SELECTOR_ALL"
+        task.properties.analog_controller_config.gain = 30
+
         task.properties.binning_config = Types.camera_lucid.BinningConfig.new
         task.properties.binning_config.selector = "BINNING_SELECTOR_DIGITAL"
         task.properties.binning_config.horizontal_mode = "BINNING_MODE_SUM"

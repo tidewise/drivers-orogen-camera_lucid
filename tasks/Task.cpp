@@ -313,13 +313,10 @@ void Task::configureCamera(Arena::IDevice& device, Arena::ISystem& system)
     // If the camera is acquiring images, AcquisitionStop must be called before
     // adjusting binning settings.
     binningConfiguration(device);
-
     decimationConfiguration(device);
-
     dimensionsConfiguration(device);
-
     exposureConfiguration(device);
-
+    analogConfiguration(device);
     infoConfiguration(device);
 
     Frame* frame = new Frame(_image_config.get().width,
@@ -745,6 +742,75 @@ void Task::acquisitionConfiguration(Arena::IDevice& device)
         LOG_ERROR_S << "Frame rate was not set correctly. Setpoint: "
                     << _image_config.get().frame_rate << ". Current: " << current << endl;
         throw runtime_error("Frame rate value differs.");
+    }
+}
+
+void Task::analogConfiguration(Arena::IDevice& device)
+{
+    LOG_INFO_S << "Configuring Analog Control." << endl;
+
+    LOG_INFO_S << "Setting Gain Selector to ."
+               << gain_selector_name.at(_analog_controller_config.get().gain_selector)
+               << endl;
+    Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
+        "GainSelector",
+        gain_selector_name.at(_analog_controller_config.get().gain_selector).c_str());
+
+    GenApi::CEnumerationPtr gain_selector = device.GetNodeMap()->GetNode("GainSelector");
+
+    auto current = gain_selector->GetCurrentEntry()->GetSymbolic();
+    if (current !=
+        gain_selector_name.at(_analog_controller_config.get().gain_selector).c_str()) {
+        LOG_WARN_S << "GainSelector value differs setpoint: "
+                   << gain_selector_name.at(_analog_controller_config.get().gain_selector)
+                   << " current: " << current << endl;
+        throw runtime_error("GainSelector value differs.");
+    }
+
+    LOG_INFO_S << "Setting Gain Auto mode to ."
+               << gain_auto_name.at(_analog_controller_config.get().gain_auto) << endl;
+    Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
+        "GainAuto",
+        gain_auto_name.at(_analog_controller_config.get().gain_auto).c_str());
+
+    GenApi::CEnumerationPtr gain_auto = device.GetNodeMap()->GetNode("GainAuto");
+
+    current = gain_auto->GetCurrentEntry()->GetSymbolic();
+    if (current != gain_auto_name.at(_analog_controller_config.get().gain_auto).c_str()) {
+        LOG_WARN_S << "GainAuto value differs setpoint: "
+                   << gain_auto_name.at(_analog_controller_config.get().gain_auto)
+                   << " current: " << current << endl;
+        throw runtime_error("GainAuto value differs.");
+    }
+
+    if (_analog_controller_config.get().gain_auto == GainAuto::GAIN_AUTO_OFF) {
+        LOG_INFO_S << "Setting gain to: " << _analog_controller_config.get().gain << endl;
+        GenApi::CFloatPtr gain = device.GetNodeMap()->GetNode("Gain");
+
+        auto max_gain = gain->GetMax();
+        auto min_gain = gain->GetMin();
+        auto setpoint = _analog_controller_config.get().gain;
+
+        if (setpoint > max_gain) {
+            LOG_WARN_S << "Gain exceeds maximum value. Setting Exposure to "
+                          "maximum value: "
+                       << max_gain << endl;
+            setpoint = max_gain;
+        }
+        else if (setpoint < min_gain) {
+            LOG_WARN_S << "Gain exceeds minimum value. Setting Exposure to "
+                          "minimum value: "
+                       << min_gain << endl;
+            setpoint = min_gain;
+        }
+        gain->SetValue(static_cast<double>(setpoint));
+
+        auto current = gain->GetValue();
+        if (abs(current - setpoint) >= 10) {
+            LOG_WARN_S << "Gain value differs from setpoint: " << setpoint
+                       << " current: " << current << endl;
+            throw runtime_error("Gain value differs.");
+        }
     }
 }
 
