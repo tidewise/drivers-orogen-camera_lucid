@@ -122,6 +122,7 @@ argument.
         void decimationConfiguration(Arena::IDevice& device);
         void dimensionsConfiguration(Arena::IDevice& device);
         void exposureConfiguration(Arena::IDevice& device);
+        void infoConfiguration(Arena::IDevice& device);
 
         void collectInfo();
         void acquireFrame();

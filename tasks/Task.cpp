@@ -142,7 +142,6 @@ bool Task::configureHook()
     if (!TaskBase::configureHook()) {
         return false;
     }
-    m_last_message = base::Time::now();
     try {
         ArenaSystem system(Arena::OpenSystem());
         ArenaDevice device(connectToCamera(*system), *system);
@@ -320,6 +319,8 @@ void Task::configureCamera(Arena::IDevice& device, Arena::ISystem& system)
     dimensionsConfiguration(device);
 
     exposureConfiguration(device);
+
+    infoConfiguration(device);
 
     Frame* frame = new Frame(_image_config.get().width,
         _image_config.get().height,
@@ -773,37 +774,42 @@ void Task::factoryReset(Arena::IDevice* device, Arena::ISystem& system)
     }
 }
 
+void Task::infoConfiguration(Arena::IDevice& device)
+{
+    LOG_INFO_S << "Setting device temperature selector to "
+               << device_temperature_selector_name.at(
+                      _camera_config.get().temperature_selector)
+               << endl;
+    Arena::SetNodeValue<gcstring>(m_device->GetNodeMap(),
+        "DeviceTemperatureSelector",
+        device_temperature_selector_name.at(_camera_config.get().temperature_selector)
+            .c_str());
+
+    GenApi::CEnumerationPtr temperature_selector =
+        m_device->GetNodeMap()->GetNode("DeviceTemperatureSelector");
+
+    auto current = temperature_selector->GetCurrentEntry()->GetSymbolic();
+    if (current !=
+        device_temperature_selector_name.at(_camera_config.get().temperature_selector)
+            .c_str()) {
+        LOG_WARN_S << "DeviceTemperatureSelector value differs setpoint: "
+                   << device_temperature_selector_name.at(
+                          _camera_config.get().temperature_selector)
+                   << " current: " << current << endl;
+        throw runtime_error("DeviceTemperatureSelector value differs.");
+    }
+    m_last_message = base::Time::now();
+}
+
 void Task::collectInfo()
 {
     auto current_time = base::Time::now();
-
-    if (current_time - m_last_message >= _camera_config.get().update_info) {
-
-        LOG_INFO_S << "Setting device temperature selector to "
-                   << device_temperature_selector_name.at(
-                          _camera_config.get().temperature_selector)
-                   << endl;
+    if (current_time - m_last_message < _camera_config.get().update_info) {
+        return;
+    }
+    else {
         camera_lucid::CameraInfo info_message;
         try {
-            Arena::SetNodeValue<gcstring>(m_device->GetNodeMap(),
-                "DeviceTemperatureSelector",
-                device_temperature_selector_name
-                    .at(_camera_config.get().temperature_selector)
-                    .c_str());
-
-            GenApi::CEnumerationPtr temperature_selector =
-                m_device->GetNodeMap()->GetNode("DeviceTemperatureSelector");
-
-            auto current = temperature_selector->GetCurrentEntry()->GetSymbolic();
-            if (current != device_temperature_selector_name
-                               .at(_camera_config.get().temperature_selector)
-                               .c_str()) {
-                LOG_WARN_S << "DeviceTemperatureSelector value differs setpoint: "
-                           << device_temperature_selector_name.at(
-                                  _camera_config.get().temperature_selector)
-                           << " current: " << current << endl;
-                throw runtime_error("DeviceTemperatureSelector value differs.");
-            }
             // get DeviceTemperature
             LOG_INFO_S << "Acquiring temperature from "
                        << device_temperature_selector_name.at(
