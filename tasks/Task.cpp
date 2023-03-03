@@ -147,11 +147,13 @@ bool Task::configureHook()
         ArenaDevice device(connectToCamera(*system), *system);
         switchOverAccess(*device); // get() returns a reference
 
-        LOG_INFO_S << "Performing Factory Reset" << endl;
-        factoryReset(device.release(), *system);
+        if (_camera_config.get().factory_reset) {
+            LOG_INFO_S << "Performing Factory Reset" << endl;
+            factoryReset(device.release(), *system);
 
-        device.reset(connectToCamera(*system), *system);
-        switchOverAccess(*device);
+            device.reset(connectToCamera(*system), *system);
+            switchOverAccess(*device);
+        }
 
         configureCamera(*device, *system);
         m_system = system.release(); // returns pointer

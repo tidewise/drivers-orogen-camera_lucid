@@ -139,6 +139,8 @@ namespace camera_lucid {
     struct CameraConfig {
         /** Camera's ip*/
         std::string ip;
+        /** Perform factory reset? */
+        bool factory_reset = false;
         /** Timeout after factory reset*/
         base::Time camera_reset_timeout = base::Time::fromSeconds(50);
         /** Period of info update (such as temperature, pressure...)*/
