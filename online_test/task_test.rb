@@ -89,6 +89,8 @@ describe OroGen.camera_lucid.Task do
         task.properties.camera_config.ip = "10.1.1.24"
         task.properties.camera_config.factory_reset = false
         task.properties.camera_config.camera_reset_timeout = Time.at(50)
+        task.properties.camera_config
+            .temperature_selector = "DEVICE_TEMPERATURE_SELECTOR_SENSOR"
         task.properties.camera_config.update_info = Time.at(1)
 
         task.properties.image_config = Types.camera_lucid.ImageConfig.new
@@ -96,7 +98,7 @@ describe OroGen.camera_lucid.Task do
         task.properties.image_config.frame_rate = 21.0
         task.properties.image_config.format = "MODE_BAYER_RGGB"
         task.properties.image_config.depth = 8
-        task.properties.image_config.exposure_auto = "EXPOSURE_AUTO_CONTINUOUS"
+        task.properties.image_config.exposure_auto = "EXPOSURE_AUTO_OFF"
         task.properties.image_config.exposure_time = Time.at(0.001)
         task.properties.image_config.width = 2448
         task.properties.image_config.height = 2048
@@ -107,7 +109,7 @@ describe OroGen.camera_lucid.Task do
                                                         .AnalogControllerConfig.new
         task.properties.analog_controller_config.gain_auto = "GAIN_AUTO_OFF"
         task.properties.analog_controller_config.gain_selector = "GAIN_SELECTOR_ALL"
-        task.properties.analog_controller_config.gain = 30
+        task.properties.analog_controller_config.gain = 0
 
         task.properties.binning_config = Types.camera_lucid.BinningConfig.new
         task.properties.binning_config.selector = "BINNING_SELECTOR_DIGITAL"
