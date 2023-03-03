@@ -815,8 +815,8 @@ void Task::collectInfo()
                        << device_temperature_selector_name.at(
                               _camera_config.get().temperature_selector)
                        << endl;
-            info_message.temperature =
-                Arena::GetNodeValue<double>(m_device->GetNodeMap(), "DeviceTemperature");
+            info_message.temperature = info_message.temperature.fromCelsius(
+                Arena::GetNodeValue<double>(m_device->GetNodeMap(), "DeviceTemperature"));
         }
         catch (GenICam::GenericException& ge) {
             LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;

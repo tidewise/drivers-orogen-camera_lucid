@@ -4,6 +4,7 @@
 #include "Arena/ArenaApi.h"
 #include <base/Time.hpp>
 #include <base/samples/Frame.hpp>
+#include <base/Temperature.hpp>
 #include <string>
 #include <vector>
 
@@ -126,7 +127,7 @@ namespace camera_lucid {
 
     struct CameraInfo {
         /** Camera's temperature from Sensor mode*/
-        float temperature = 0;
+        base::Temperature temperature;
     };
 }
 
