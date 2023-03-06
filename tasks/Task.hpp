@@ -41,6 +41,8 @@ argument.
         // The switchover key to be used
         int64_t m_switchover_key = 0x1000;
 
+        base::Time m_last_message;
+
     public:
         /** TaskContext constructor for Task
          * \param name Name of the task. This name needs to be unique to make it
@@ -114,14 +116,15 @@ argument.
         Arena::IDevice* connectToCamera(Arena::ISystem& system);
         void switchOverAccess(Arena::IDevice& device);
         void configureCamera(Arena::IDevice& device, Arena::ISystem& system);
-        void factoryReset(Arena::IDevice* device,
-            Arena::ISystem& system);
+        void factoryReset(Arena::IDevice* device, Arena::ISystem& system);
         void acquisitionConfiguration(Arena::IDevice& device);
         void binningConfiguration(Arena::IDevice& device);
         void decimationConfiguration(Arena::IDevice& device);
         void dimensionsConfiguration(Arena::IDevice& device);
         void exposureConfiguration(Arena::IDevice& device);
+        void infoConfiguration(Arena::IDevice& device);
 
+        void collectInfo();
         void acquireFrame();
         base::samples::frame::frame_mode_t convertPixelFormatToFrameMode(
             PfncFormat format,
