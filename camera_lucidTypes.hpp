@@ -52,6 +52,20 @@ namespace camera_lucid {
     };
     static std::vector<std::string> device_temperature_selector_name = {"Sensor", "TEC"};
 
+    enum GainSelector {
+        GAIN_SELECTOR_ALL = 0,
+        GAIN_SELECTOR_SHUTTER_1 = 1,
+        GAIN_SELECTOR_SHUTTER_2 = 2
+    };
+    static std::vector<std::string> gain_selector_name = {"All", "Shutter1" , "Shutter2"};
+
+    enum GainAuto {
+        GAIN_AUTO_OFF = 0,
+        GAIN_AUTO_ONCE = 1,
+        GAIN_AUTO_CONTINUOUS = 2
+    };
+    static std::vector<std::string> gain_auto_name = {"Off", "Once", "Continuous"};
+
     struct BinningConfig {
         /** Selects which binning engine is controlled by the BinningHorizontal and
          * BinningVertical features. */
@@ -88,6 +102,15 @@ namespace camera_lucid {
         int decimation_y = 1;
     };
 
+    struct AnalogControllerConfig {
+        /** Value used for gain*/
+        float gain = 0.0;
+        /** Sets the automatic Gain mode*/
+        GainAuto gain_auto = GainAuto::GAIN_AUTO_OFF;
+        /** Selects all shutters or shutter1 or shutter2*/
+        GainSelector gain_selector = GainSelector::GAIN_SELECTOR_ALL;
+    };
+
     struct ImageConfig {
         /** Timeout for frame acquisition.*/
         base::Time frame_timeout = base::Time::fromMilliseconds(500);
@@ -116,6 +139,8 @@ namespace camera_lucid {
     struct CameraConfig {
         /** Camera's ip*/
         std::string ip;
+        /** Perform factory reset? */
+        bool factory_reset = false;
         /** Timeout after factory reset*/
         base::Time camera_reset_timeout = base::Time::fromSeconds(50);
         /** Period of info update (such as temperature, pressure...)*/

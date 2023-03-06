@@ -124,6 +124,11 @@ struct ArenaSystem {
     }
 };
 
+template <typename T> const char* getEnumName(T enum_type, vector<string> name)
+{
+    return name.at(enum_type).c_str();
+}
+
 Task::Task(string const& name)
     : TaskBase(name)
 {
@@ -147,11 +152,13 @@ bool Task::configureHook()
         ArenaDevice device(connectToCamera(*system), *system);
         switchOverAccess(*device); // get() returns a reference
 
-        LOG_INFO_S << "Performing Factory Reset" << endl;
-        factoryReset(device.release(), *system);
+        if (_camera_config.get().factory_reset) {
+            LOG_INFO_S << "Performing Factory Reset" << endl;
+            factoryReset(device.release(), *system);
 
-        device.reset(connectToCamera(*system), *system);
-        switchOverAccess(*device);
+            device.reset(connectToCamera(*system), *system);
+            switchOverAccess(*device);
+        }
 
         configureCamera(*device, *system);
         m_system = system.release(); // returns pointer
@@ -313,14 +320,11 @@ void Task::configureCamera(Arena::IDevice& device, Arena::ISystem& system)
     // If the camera is acquiring images, AcquisitionStop must be called before
     // adjusting binning settings.
     binningConfiguration(device);
-
     decimationConfiguration(device);
-
     dimensionsConfiguration(device);
-
     exposureConfiguration(device);
-
-    infoConfiguration(device);
+    analogConfiguration(device);
+    // infoConfiguration(device);
 
     Frame* frame = new Frame(_image_config.get().width,
         _image_config.get().height,
@@ -469,10 +473,11 @@ void Task::binningConfiguration(Arena::IDevice& device)
     }
 
     LOG_INFO_S << "Set binning mode to "
-               << binning_selector_name.at(_binning_config.get().selector) << endl;
+               << getEnumName(_binning_config.get().selector, binning_selector_name)
+               << endl;
     Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "BinningSelector",
-        binning_selector_name.at(_binning_config.get().selector).c_str());
+        getEnumName(_binning_config.get().selector, binning_selector_name));
 
     // Check if the nodes for the height and width of the bin are available
     //    For rare case where sensor binning is unsupported but still appears as
@@ -520,11 +525,11 @@ void Task::binningConfiguration(Arena::IDevice& device)
 
     Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "BinningVerticalMode",
-        binning_mode_name.at(_binning_config.get().vertical_mode).c_str());
+        getEnumName(_binning_config.get().vertical_mode, binning_mode_name));
 
     Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "BinningHorizontalMode",
-        binning_mode_name.at(_binning_config.get().horizontal_mode).c_str());
+        getEnumName(_binning_config.get().horizontal_mode, binning_mode_name));
 
     if (_binning_config.get().binning_y !=
             Arena::GetNodeValue<int64_t>(device.GetNodeMap(), "BinningVertical") ||
@@ -547,7 +552,7 @@ void Task::decimationConfiguration(Arena::IDevice& device)
         device.GetNodeMap()->GetNode("DecimationSelector");
     GenApi::CEnumEntryPtr decimation_sensor_entry =
         decimation_selector_node->GetEntryByName(
-            decimation_selector_name.at(_decimation_config.get().selector).c_str());
+            getEnumName(_decimation_config.get().selector, decimation_selector_name));
     if (decimation_sensor_entry == 0 || !GenApi::IsAvailable(decimation_sensor_entry)) {
         LOG_WARN_S << "Sensor decimation not supported by device: not available from "
                       "DecimationSelector."
@@ -557,10 +562,11 @@ void Task::decimationConfiguration(Arena::IDevice& device)
     }
 
     LOG_INFO_S << "Set decimation mode to: "
-               << decimation_selector_name.at(_decimation_config.get().selector) << endl;
+               << getEnumName(_decimation_config.get().selector, decimation_selector_name)
+               << endl;
     Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "DecimationSelector",
-        decimation_selector_name.at(_decimation_config.get().selector).c_str());
+        getEnumName(_decimation_config.get().selector, decimation_selector_name));
 
     // Check if the nodes for the height and width of the bin are available
     //    For rare case where sensor decimation is unsupported but still appears as
@@ -606,11 +612,11 @@ void Task::decimationConfiguration(Arena::IDevice& device)
 
     Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "DecimationVerticalMode",
-        decimation_mode_name.at(_decimation_config.get().vertical_mode).c_str());
+        getEnumName(_decimation_config.get().vertical_mode, decimation_mode_name));
 
     Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "DecimationHorizontalMode",
-        decimation_mode_name.at(_decimation_config.get().horizontal_mode).c_str());
+        getEnumName(_decimation_config.get().horizontal_mode, decimation_mode_name));
 
     if (_decimation_config.get().decimation_y !=
             Arena::GetNodeValue<int64_t>(device.GetNodeMap(), "DecimationVertical") ||
@@ -673,17 +679,18 @@ void Task::dimensionsConfiguration(Arena::IDevice& device)
 void Task::exposureConfiguration(Arena::IDevice& device)
 {
     LOG_INFO_S << "Setting auto exposure to "
-               << exposure_auto_name.at(_image_config.get().exposure_auto) << endl;
+               << getEnumName(_image_config.get().exposure_auto, exposure_auto_name)
+               << endl;
     Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "ExposureAuto",
-        exposure_auto_name.at(_image_config.get().exposure_auto).c_str());
+        getEnumName(_image_config.get().exposure_auto, exposure_auto_name));
 
     GenApi::CEnumerationPtr exposure_auto = device.GetNodeMap()->GetNode("ExposureAuto");
 
     auto current = exposure_auto->GetCurrentEntry()->GetSymbolic();
-    if (current != exposure_auto_name.at(_image_config.get().exposure_auto).c_str()) {
+    if (current != getEnumName(_image_config.get().exposure_auto, exposure_auto_name)) {
         LOG_WARN_S << "ExposureAuto value differs setpoint: "
-                   << exposure_auto_name.at(_image_config.get().exposure_auto)
+                   << getEnumName(_image_config.get().exposure_auto, exposure_auto_name)
                    << " current: " << current << endl;
         throw runtime_error("ExposureAuto value differs.");
     }
@@ -748,6 +755,80 @@ void Task::acquisitionConfiguration(Arena::IDevice& device)
     }
 }
 
+void Task::analogConfiguration(Arena::IDevice& device)
+{
+    LOG_INFO_S << "Configuring Analog Control." << endl;
+
+    LOG_INFO_S << "Setting Gain Selector to ."
+               << getEnumName(_analog_controller_config.get().gain_selector,
+                      gain_selector_name)
+               << endl;
+    Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
+        "GainSelector",
+        getEnumName(_analog_controller_config.get().gain_selector, gain_selector_name));
+
+    GenApi::CEnumerationPtr gain_selector = device.GetNodeMap()->GetNode("GainSelector");
+
+    auto current = gain_selector->GetCurrentEntry()->GetSymbolic();
+    if (current !=
+        getEnumName(_analog_controller_config.get().gain_selector, gain_selector_name)) {
+        LOG_WARN_S << "GainSelector value differs setpoint: "
+                   << getEnumName(_analog_controller_config.get().gain_selector,
+                          gain_selector_name)
+                   << " current: " << current << endl;
+        throw runtime_error("GainSelector value differs.");
+    }
+
+    LOG_INFO_S << "Setting Gain Auto mode to ."
+               << getEnumName(_analog_controller_config.get().gain_auto, gain_auto_name)
+               << endl;
+    Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
+        "GainAuto",
+        getEnumName(_analog_controller_config.get().gain_auto, gain_auto_name));
+
+    GenApi::CEnumerationPtr gain_auto = device.GetNodeMap()->GetNode("GainAuto");
+
+    current = gain_auto->GetCurrentEntry()->GetSymbolic();
+    if (current !=
+        getEnumName(_analog_controller_config.get().gain_auto, gain_auto_name)) {
+        LOG_WARN_S << "GainAuto value differs setpoint: "
+                   << getEnumName(_analog_controller_config.get().gain_auto,
+                          gain_auto_name)
+                   << " current: " << current << endl;
+        throw runtime_error("GainAuto value differs.");
+    }
+
+    if (_analog_controller_config.get().gain_auto == GainAuto::GAIN_AUTO_OFF) {
+        LOG_INFO_S << "Setting gain to: " << _analog_controller_config.get().gain << endl;
+        GenApi::CFloatPtr gain = device.GetNodeMap()->GetNode("Gain");
+
+        auto max_gain = gain->GetMax();
+        auto min_gain = gain->GetMin();
+        auto setpoint = _analog_controller_config.get().gain;
+
+        if (setpoint > max_gain) {
+            LOG_WARN_S << "Gain exceeds maximum value. Setting Exposure to "
+                          "maximum value: "
+                       << max_gain << endl;
+            setpoint = max_gain;
+        }
+        else if (setpoint < min_gain) {
+            LOG_WARN_S << "Gain exceeds minimum value. Setting Exposure to "
+                          "minimum value: "
+                       << min_gain << endl;
+            setpoint = min_gain;
+        }
+        gain->SetValue(static_cast<double>(setpoint));
+
+        auto current = gain->GetValue();
+        if (abs(current - setpoint) >= 10) {
+            LOG_WARN_S << "Gain value differs from setpoint: " << setpoint
+                       << " current: " << current << endl;
+            throw runtime_error("Gain value differs.");
+        }
+    }
+}
+
 void Task::factoryReset(Arena::IDevice* device, Arena::ISystem& system)
 {
     ArenaDevice guard(device, system);
@@ -777,24 +858,23 @@ void Task::factoryReset(Arena::IDevice* device, Arena::ISystem& system)
 void Task::infoConfiguration(Arena::IDevice& device)
 {
     LOG_INFO_S << "Setting device temperature selector to "
-               << device_temperature_selector_name.at(
-                      _camera_config.get().temperature_selector)
+               << getEnumName(_camera_config.get().temperature_selector,
+                      device_temperature_selector_name)
                << endl;
     Arena::SetNodeValue<gcstring>(m_device->GetNodeMap(),
         "DeviceTemperatureSelector",
-        device_temperature_selector_name.at(_camera_config.get().temperature_selector)
-            .c_str());
+        getEnumName(_camera_config.get().temperature_selector,
+            device_temperature_selector_name));
 
     GenApi::CEnumerationPtr temperature_selector =
         m_device->GetNodeMap()->GetNode("DeviceTemperatureSelector");
 
     auto current = temperature_selector->GetCurrentEntry()->GetSymbolic();
-    if (current !=
-        device_temperature_selector_name.at(_camera_config.get().temperature_selector)
-            .c_str()) {
+    if (current != getEnumName(_camera_config.get().temperature_selector,
+                       device_temperature_selector_name)) {
         LOG_WARN_S << "DeviceTemperatureSelector value differs setpoint: "
-                   << device_temperature_selector_name.at(
-                          _camera_config.get().temperature_selector)
+                   << getEnumName(_camera_config.get().temperature_selector,
+                          device_temperature_selector_name)
                    << " current: " << current << endl;
         throw runtime_error("DeviceTemperatureSelector value differs.");
     }
@@ -812,8 +892,8 @@ void Task::collectInfo()
         try {
             // get DeviceTemperature
             LOG_INFO_S << "Acquiring temperature from "
-                       << device_temperature_selector_name.at(
-                              _camera_config.get().temperature_selector)
+                       << getEnumName(_camera_config.get().temperature_selector,
+                              device_temperature_selector_name)
                        << endl;
             info_message.temperature = info_message.temperature.fromCelsius(
                 Arena::GetNodeValue<double>(m_device->GetNodeMap(), "DeviceTemperature"));

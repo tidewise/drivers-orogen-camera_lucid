@@ -39,6 +39,9 @@ task_context "Task" do
     # feature may result in an increase of camera's frame rate.
     property "decimation_config", "camera_lucid/DecimationConfig"
 
+    # Analog Controller Config
+    property "analog_controller_config", "camera_lucid/AnalogControllerConfig"
+
     # Image Configuration
     property "image_config", "camera_lucid/ImageConfig"
 
