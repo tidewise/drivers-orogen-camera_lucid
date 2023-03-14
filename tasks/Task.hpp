@@ -118,6 +118,9 @@ argument.
         void configureCamera(Arena::IDevice& device, Arena::ISystem& system);
         void factoryReset(Arena::IDevice* device, Arena::ISystem& system);
         void acquisitionConfiguration(Arena::IDevice& device);
+        void ptpSyncConfiguration(Arena::IDevice& device, Arena::ISystem& system);
+        void waitDevicePTPNegotiation(Arena::IDevice& current_device,
+            Arena::ISystem& system);
         void binningConfiguration(Arena::IDevice& device);
         void decimationConfiguration(Arena::IDevice& device);
         void dimensionsConfiguration(Arena::IDevice& device);

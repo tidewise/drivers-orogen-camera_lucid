@@ -2,9 +2,9 @@
 #define camera_lucid_TYPES_HPP
 
 #include "Arena/ArenaApi.h"
+#include <base/Temperature.hpp>
 #include <base/Time.hpp>
 #include <base/samples/Frame.hpp>
-#include <base/Temperature.hpp>
 #include <string>
 #include <vector>
 
@@ -57,7 +57,7 @@ namespace camera_lucid {
         GAIN_SELECTOR_SHUTTER_1 = 1,
         GAIN_SELECTOR_SHUTTER_2 = 2
     };
-    static std::vector<std::string> gain_selector_name = {"All", "Shutter1" , "Shutter2"};
+    static std::vector<std::string> gain_selector_name = {"All", "Shutter1", "Shutter2"};
 
     enum GainAuto {
         GAIN_AUTO_OFF = 0,
@@ -65,6 +65,35 @@ namespace camera_lucid {
         GAIN_AUTO_CONTINUOUS = 2
     };
     static std::vector<std::string> gain_auto_name = {"Off", "Once", "Continuous"};
+
+    enum AcquisitionStartMode {
+        ACQUISITION_START_MODE_NORMAL = 0,
+        ACQUISITION_START_MODE_LOWLATENCY = 1,
+        ACQUISITION_START_MODE_PTPSYNC = 2
+    };
+    static std::vector<std::string> acquisition_start_mode_name{"Normal",
+        "LowLatency",
+        "PTPSync"};
+
+    struct PTPSync {
+        /** Enable/Disable ptp sync
+         *  With ptp, all cameras must be configured as so and exposure auto must be OFF
+         */
+        bool enable_ptp = false;
+        /* Timeout during Master/Slave configuration (usually it configures up to 40s
+         * accorgind to documentation)*/
+        base::Time sync_timeout = base::Time::fromMilliseconds(50000);
+        /** Device link speed => 1 Gbps = 125000000 Bps */
+        int link_speed = 125000000;
+        /** Packet size, mtu 9000 is jumbo*/
+        int packet_size = 1500;
+        /** Number of cameras on the ptp*/
+        int number_of_cameras = 1;
+        /** Camera number to calculate scpd and scftd, starting at 0*/
+        int camera_number = 0;
+        /** Buffer percentage, usually from 10 to 30%*/
+        float buffer_percentage = 0.1093;
+    };
 
     struct BinningConfig {
         /** Selects which binning engine is controlled by the BinningHorizontal and
@@ -119,13 +148,13 @@ namespace camera_lucid {
         double frame_rate = 15.0;
         /** Image format*/
         base::samples::frame::frame_mode_t format =
-            base::samples::frame::frame_mode_t::MODE_BAYER_BGGR;
+            base::samples::frame::frame_mode_t::MODE_BAYER_RGGB;
         /** Depth*/
         uint8_t depth = 8;
         /** Sets the automatic exposure mode.*/
         ExposureAuto exposure_auto = EXPOSURE_AUTO_CONTINUOUS;
         /** Controls the device exposure time.*/
-        base::Time exposure_time = base::Time::fromMicroseconds(8000);
+        base::Time exposure_time = base::Time::fromMicroseconds(1000);
         /** Width of the image provided by the device in pixels.*/
         int width = 2448;
         /** Height of the image provided by the device in pixels.*/
@@ -148,6 +177,8 @@ namespace camera_lucid {
         /** Choose the temperature sensor*/
         DeviceTemperatureSelector temperature_selector =
             DeviceTemperatureSelector::DEVICE_TEMPERATURE_SELECTOR_SENSOR;
+        /** configure PTPSync*/
+        PTPSync ptp_sync;
     };
 
     struct CameraInfo {

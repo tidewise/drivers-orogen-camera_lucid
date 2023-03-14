@@ -160,6 +160,13 @@ bool Task::configureHook()
             switchOverAccess(*device);
         }
 
+        if (_camera_config.get().ptp_sync.enable_ptp) {
+            ptpSyncConfiguration(*device, *system);
+        }
+        else {
+            acquisitionConfiguration(*device);
+        }
+
         configureCamera(*device, *system);
         m_system = system.release(); // returns pointer
         m_device = device.release(); // returns pointer
@@ -289,13 +296,14 @@ void Task::switchOverAccess(Arena::IDevice& device)
 void Task::configureCamera(Arena::IDevice& device, Arena::ISystem& system)
 {
     LOG_INFO_S << "Configuring camera." << endl;
-    acquisitionConfiguration(device);
 
     LOG_INFO_S << "Setting StreamBufferHandlingMode." << endl;
     Arena::SetNodeValue<GenICam::gcstring>(device.GetTLStreamNodeMap(),
         "StreamBufferHandlingMode",
         "NewestOnly");
 
+    // Use max supported packet size. We use transfer control to ensure that only one
+    // camera is transmitting at a time.
     LOG_INFO_S << "Setting StreamAutoNegotiatePacketSize." << endl;
     Arena::SetNodeValue<bool>(device.GetTLStreamNodeMap(),
         "StreamAutoNegotiatePacketSize",
@@ -324,7 +332,7 @@ void Task::configureCamera(Arena::IDevice& device, Arena::ISystem& system)
     dimensionsConfiguration(device);
     exposureConfiguration(device);
     analogConfiguration(device);
-    // infoConfiguration(device);
+    infoConfiguration(device);
 
     Frame* frame = new Frame(_image_config.get().width,
         _image_config.get().height,
@@ -450,6 +458,147 @@ string Task::convertFrameModeToPixelFormat(frame_mode_t format, uint8_t data_dep
 
         default:
             return "";
+    }
+}
+
+void Task::ptpSyncConfiguration(Arena::IDevice& device, Arena::ISystem& system)
+{
+    LOG_INFO_S << "Enabling PTP Sync" << endl;
+    Arena::SetNodeValue<bool>(device.GetNodeMap(), "PtpEnable", true);
+
+    auto ptp_config = _camera_config.get().ptp_sync;
+    GenICam::gcstring ptp_status =
+        Arena::GetNodeValue<GenICam::gcstring>(device.GetNodeMap(), "PtpStatus");
+    LOG_INFO_S << "PtpStatus configured as " << ptp_status << endl;
+
+    // Check if AutoExposure will be configured as off
+    if (_image_config.get().exposure_auto != ExposureAuto::EXPOSURE_AUTO_OFF) {
+        LOG_ERROR_S << "In PTP Sync mode Exposure Auto needs to be configured manually!!"
+                    << endl;
+        throw runtime_error("In PTP Sync mode Exposure Auto needs to be OFF!!");
+    }
+
+    LOG_INFO_S << "Set acquisition start mode to 'PTPSync'" << endl;
+    Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
+        "AcquisitionStartMode",
+        "PTPSync");
+
+    LOG_INFO_S << "Setting Acquisition Mode." << endl;
+    Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
+        "AcquisitionMode",
+        "Continuous");
+
+    LOG_INFO_S << "Set acquisition frame rate to maximum value" << endl;
+    GenApi::CFloatPtr aquisition_frame_rate =
+        device.GetNodeMap()->GetNode("AcquisitionFrameRate");
+    auto max_fps = aquisition_frame_rate->GetMax();
+    aquisition_frame_rate->SetValue(max_fps);
+
+    LOG_INFO_S << "Set PTP Sync frame rate to " << _image_config.get().frame_rate << endl;
+    GenApi::CFloatPtr ptp_sync_frame_rate =
+        device.GetNodeMap()->GetNode("PTPSyncFrameRate");
+    if (_image_config.get().frame_rate > max_fps) {
+        LOG_WARN_S << "Desired frame rate is higher than maximum allowed ( " << max_fps
+                   << "fps). Decreasing to this maximum value." << endl;
+        ptp_sync_frame_rate->SetValue(max_fps);
+    }
+    else {
+        ptp_sync_frame_rate->SetValue(_image_config.get().frame_rate);
+    }
+
+    /* For more information, please check:
+    https://support.thinklucid.com/app-note-bandwidth-sharing-in-multi-camera-systems
+    */
+    long packet_delay_ns = (1 + ptp_config.buffer_percentage) * ptp_config.packet_size *
+                           pow(10, 9) / ptp_config.link_speed;
+    // Firmware expects a value that is a multiple of 8, do so while rounding up
+    packet_delay_ns = ((packet_delay_ns + 7) / 8) * 8;
+
+    long scpd = packet_delay_ns * (ptp_config.number_of_cameras - 1);
+
+    GenApi::CIntegerPtr stream_channel_packet_delay =
+        device.GetNodeMap()->GetNode("GevSCPD");
+    stream_channel_packet_delay->SetValue(scpd);
+
+    long scftd = packet_delay_ns * ptp_config.camera_number;
+
+    GenApi::CIntegerPtr stream_channel_frame_transmission_delay =
+        device.GetNodeMap()->GetNode("GevSCFTD");
+    stream_channel_frame_transmission_delay->SetValue(scftd);
+
+    waitDevicePTPNegotiation(device, system);
+}
+
+void Task::waitDevicePTPNegotiation(Arena::IDevice& current_device,
+    Arena::ISystem& system)
+{
+    // Wait for devices to negotiate their PTP relationship
+    //    Before starting any PTP-dependent actions, it is important to wait for
+    //    the devices to complete their negotiation; otherwise, the devices may
+    //    not yet be synced. Depending on the initial PTP state of each camera,
+    //    it can take about 40 seconds for all devices to autonegotiate. Below,
+    //    we wait for the PTP status of each device until there is only one
+    //    'Master' and the rest are all 'Slaves'. During the negotiation phase,
+    //    multiple devices may initially come up as Master so we will wait until
+    //    the ptp negotiation completes.
+
+    system.UpdateDevices(100);
+    vector<Arena::DeviceInfo> device_infos = system.GetDevices();
+
+    auto start_time = base::Time::now();
+    while (true) {
+        bool masterFound = false;
+        bool restartSyncCheck = false;
+
+        // check devices
+        for (auto device_info : device_infos) {
+            if (device_infos.size() !=
+                static_cast<size_t>(_camera_config.get().ptp_sync.number_of_cameras)) {
+                LOG_WARN_S << "Not all cameras are discovered yet." << endl;
+                system.UpdateDevices(100);
+                device_infos.clear();
+                device_infos = system.GetDevices();
+            }
+            GenICam::gcstring ptp_status;
+            if (_camera_config.get().ip.compare(device_info.IpAddressStr()) == 0) {
+                // get PTP status
+                ptp_status =
+                    Arena::GetNodeValue<GenICam::gcstring>(current_device.GetNodeMap(),
+                        "PtpStatus");
+            }
+            else {
+                ArenaDevice dev(system.CreateDevice(device_info), system);
+                ptp_status =
+                    Arena::GetNodeValue<GenICam::gcstring>(dev.device->GetNodeMap(),
+                        "PtpStatus");
+            }
+
+            if (ptp_status == "Master") {
+                if (masterFound) {
+                    // Multiple masters -- ptp negotiation is not complete
+                    restartSyncCheck = true;
+                    break;
+                }
+
+                masterFound = true;
+            }
+            else if (ptp_status != "Slave") {
+                // Uncalibrated state -- ptp negotiation is not complete
+                restartSyncCheck = true;
+                break;
+            }
+        }
+
+        // A single master was found and all remaining cameras are slaves
+        if (!restartSyncCheck && masterFound)
+            break;
+
+        if (base::Time::now() - start_time >=
+            _camera_config.get().ptp_sync.sync_timeout) {
+            LOG_ERROR_S << "Timeout waiting for PTP Sync." << endl;
+            throw runtime_error("Timeout waiting for PTP Sync.");
+        }
+        usleep(1000000);
     }
 }
 
@@ -730,6 +879,12 @@ void Task::exposureConfiguration(Arena::IDevice& device)
 void Task::acquisitionConfiguration(Arena::IDevice& device)
 {
     LOG_INFO_S << "Configuring Acquisition." << endl;
+    Arena::SetNodeValue<bool>(device.GetNodeMap(), "PtpEnable", false);
+
+    LOG_INFO_S << "Set acquisition start mode to 'Normal'" << endl;
+    Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
+        "AcquisitionStartMode",
+        "Normal");
 
     LOG_INFO_S << "Setting Acquisition Mode." << endl;
     Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
@@ -861,13 +1016,13 @@ void Task::infoConfiguration(Arena::IDevice& device)
                << getEnumName(_camera_config.get().temperature_selector,
                       device_temperature_selector_name)
                << endl;
-    Arena::SetNodeValue<gcstring>(m_device->GetNodeMap(),
+    Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "DeviceTemperatureSelector",
         getEnumName(_camera_config.get().temperature_selector,
             device_temperature_selector_name));
 
     GenApi::CEnumerationPtr temperature_selector =
-        m_device->GetNodeMap()->GetNode("DeviceTemperatureSelector");
+        device.GetNodeMap()->GetNode("DeviceTemperatureSelector");
 
     auto current = temperature_selector->GetCurrentEntry()->GetSymbolic();
     if (current != getEnumName(_camera_config.get().temperature_selector,
