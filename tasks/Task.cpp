@@ -913,6 +913,14 @@ void Task::acquisitionConfiguration(Arena::IDevice& device)
     LOG_INFO_S << "Configuring Acquisition." << endl;
     Arena::SetNodeValue<bool>(device.GetNodeMap(), "PtpEnable", false);
 
+    GenApi::CIntegerPtr stream_channel_packet_delay =
+        device.GetNodeMap()->GetNode("GevSCPD");
+    stream_channel_packet_delay->SetValue(80);
+
+    GenApi::CIntegerPtr stream_channel_frame_transmission_delay =
+        device.GetNodeMap()->GetNode("GevSCFTD");
+    stream_channel_frame_transmission_delay->SetValue(0);
+
     LOG_INFO_S << "Set acquisition start mode to 'Normal'" << endl;
     Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
         "AcquisitionStartMode",
