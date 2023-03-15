@@ -2,17 +2,8 @@ name "camera_lucid"
 # Optionally declare the version number
 # version "0.1"
 
-# If new data types need to be defined, they have to be put in a separate C++
-# header, and this header will be loaded here
-import_types_from "camera_lucidTypes.hpp"
-# Finally, it is pretty common that headers are directly loaded from an external
-# library. In this case, the library must be first used (the name is the
-# library's pkg-config name) and then the header can be used. Following Rock
-# conventions, a common use-case would be:
-#
 using_library "camera_lucid_arenasdk"
-# import_types_from "camera_lucid_arenasdk"
-# import_types_from "camera_lucid/CustomType.hpp"
+import_types_from "camera_lucidTypes.hpp"
 
 # If this project uses data types that are defined in other oroGen projects,
 # these projects should be imported there as well.
