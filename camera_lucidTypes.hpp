@@ -16,7 +16,6 @@
  */
 
 namespace camera_lucid {
-
     enum BinningSelector {
         BINNING_SELECTOR_DIGITAL = 0,
         BINNING_SELECTOR_SENSOR = 1
@@ -38,6 +37,17 @@ namespace camera_lucid {
         DECIMATION_MODE_DISCARD = 0,
     };
     static std::vector<std::string> decimation_mode_name = {"Discard"};
+
+    enum TransferControlModes {
+        /** Camera transfers data as soon as it is ready */
+        TRANSFER_CONTROL_AUTO,
+        /** Component controls when the data should be transferred (i.e. when it is
+         * triggered
+         *
+         * Note that this does *not* control acquisition
+         */
+        TRANSFER_CONTROL_EXPLICIT
+    };
 
     enum ExposureAuto {
         EXPOSURE_AUTO_OFF = 0,

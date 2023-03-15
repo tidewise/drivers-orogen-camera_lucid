@@ -17,6 +17,10 @@ task_context "Task" do
     # Ip, reset timeout, and update info frequency
     property "camera_config", "camera_lucid/CameraConfig"
 
+    # Control when the data is transferred between the camera and the computer that
+    # runs this driver
+    property "transfer_control_mode", "camera_lucid/TransferControlModes", "TRANSFER_CONTROL_AUTO"
+
     # Binning Configuration:
     # columns and/or rows of pixels are combined to achieve a reduced overall image size
     # without changing the image's field of view. This feature may result in an increase

@@ -197,7 +197,13 @@ bool Task::startHook()
 void Task::updateHook()
 {
     TaskBase::updateHook();
+    if (_transfer_control_mode.get() == TRANSFER_CONTROL_EXPLICIT) {
+        Arena::ExecuteNode(m_device->GetNodeMap(), "TransferStart");
+    }
     acquireFrame();
+    if (_transfer_control_mode.get() == TRANSFER_CONTROL_EXPLICIT) {
+        Arena::ExecuteNode(m_device->GetNodeMap(), "TransferStop");
+    }
     collectInfo();
 }
 void Task::errorHook()
@@ -327,6 +333,7 @@ void Task::configureCamera(Arena::IDevice& device, Arena::ISystem& system)
 
     // If the camera is acquiring images, AcquisitionStop must be called before
     // adjusting binning settings.
+    transferControlConfiguration(device);
     binningConfiguration(device);
     decimationConfiguration(device);
     dimensionsConfiguration(device);
@@ -599,6 +606,21 @@ void Task::waitDevicePTPNegotiation(Arena::IDevice& current_device,
             throw runtime_error("Timeout waiting for PTP Sync.");
         }
         usleep(1000000);
+    }
+}
+
+void Task::transferControlConfiguration(Arena::IDevice& device)
+{
+    GenApi::CEnumerationPtr binning_selector_node =
+        device.GetNodeMap()->GetNode("BinningSelector");
+    if (_transfer_control_mode.get() == TRANSFER_CONTROL_AUTO) {
+        Arena::SetNodeValue(device.GetNodeMap(), "TransferControlMode", "Automatic");
+        Arena::ExecuteNode(device.GetNodeMap(), "TransferStart");
+    }
+    else {
+        Arena::SetNodeValue(device.GetNodeMap(), "TransferControlMode", "UserControlled");
+        Arena::SetNodeValue(device.GetNodeMap(), "TransferOperationMode", "Continuous");
+        Arena::ExecuteNode(device.GetNodeMap(), "TransferStop");
     }
 }
 

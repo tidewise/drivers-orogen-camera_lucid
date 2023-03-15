@@ -127,6 +127,7 @@ argument.
         void exposureConfiguration(Arena::IDevice& device);
         void infoConfiguration(Arena::IDevice& device);
         void analogConfiguration(Arena::IDevice& device);
+        void transferControlConfiguration(Arena::IDevice& device);
 
         void collectInfo();
         void acquireFrame();
