@@ -179,6 +179,8 @@ namespace camera_lucid {
             DeviceTemperatureSelector::DEVICE_TEMPERATURE_SELECTOR_SENSOR;
         /** configure PTPSync*/
         PTPSync ptp_sync;
+        /** Whether the camera controls data transfer, or the component */
+        bool explicit_data_transfer = false;
     };
 
     struct CameraInfo {

@@ -321,6 +321,22 @@ void Task::configureCamera(Arena::IDevice& device, Arena::ISystem& system)
             _image_config.get().depth)
             .c_str());
 
+    if (_camera_config.get().explicit_data_transfer) {
+        Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
+            "TransferControlMode",
+            "UserControlled");
+        Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
+            "TransferOperationMode",
+            "Continuous");
+        Arena::ExecuteNode(device.GetNodeMap(), "TransferStop");
+    }
+    else {
+        Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
+            "TransferControlMode",
+            "Automatic");
+        Arena::ExecuteNode(device.GetNodeMap(), "TransferStart");
+    }
+
     // When horizontal binning is used, horizontal decimation (if supported) is not
     // available. When vertical binning is used, vertical decimation (if supported) is
     // not available.
@@ -347,9 +363,16 @@ void Task::acquireFrame()
 {
     RequeueImageFrame frame;
     try {
+        // This was just the workaround to make it work. Not the best place to add it
+        if (_camera_config.get().explicit_data_transfer) {
+            Arena::ExecuteNode(m_device->GetNodeMap(), "TransferStart");
+        }
         frame.reset(
             m_device->GetImage(_image_config.get().frame_timeout.toMilliseconds()),
             m_device);
+        if (_camera_config.get().explicit_data_transfer) {
+            Arena::ExecuteNode(m_device->GetNodeMap(), "TransferStop");
+        }
     }
     catch (GenICam::GenericException& ge) {
         LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
@@ -545,20 +568,30 @@ void Task::waitDevicePTPNegotiation(Arena::IDevice& current_device,
     system.UpdateDevices(100);
     vector<Arena::DeviceInfo> device_infos = system.GetDevices();
 
-    auto start_time = base::Time::now();
+    auto deadline = base::Time::now() + _camera_config.get().ptp_sync.sync_timeout;
+
+    while (device_infos.size() !=
+           static_cast<size_t>(_camera_config.get().ptp_sync.number_of_cameras)) {
+        LOG_WARN_S << "Not all cameras are discovered yet." << endl;
+
+        // WARNING!! Update the devices without distroying the one we use might be the
+        // cause of the Ownership PTP error, I should investigate this!!!
+        system.UpdateDevices(100);
+        device_infos = system.GetDevices();
+
+        if (deadline < base::Time::now()) {
+            throw runtime_error("Timeout waiting for as many cameras as "
+                                "configured in PTP Sync to be available.");
+        }
+    }
+
+    // Change this while function to a returnable function as Sylvain requested.
     while (true) {
         bool masterFound = false;
         bool restartSyncCheck = false;
 
         // check devices
-        for (auto device_info : device_infos) {
-            if (device_infos.size() !=
-                static_cast<size_t>(_camera_config.get().ptp_sync.number_of_cameras)) {
-                LOG_WARN_S << "Not all cameras are discovered yet." << endl;
-                system.UpdateDevices(100);
-                device_infos.clear();
-                device_infos = system.GetDevices();
-            }
+        for (auto& device_info : device_infos) {
             GenICam::gcstring ptp_status;
             if (_camera_config.get().ip.compare(device_info.IpAddressStr()) == 0) {
                 // get PTP status
@@ -593,8 +626,7 @@ void Task::waitDevicePTPNegotiation(Arena::IDevice& current_device,
         if (!restartSyncCheck && masterFound)
             break;
 
-        if (base::Time::now() - start_time >=
-            _camera_config.get().ptp_sync.sync_timeout) {
+        if (deadline < base::Time::now()) {
             LOG_ERROR_S << "Timeout waiting for PTP Sync." << endl;
             throw runtime_error("Timeout waiting for PTP Sync.");
         }
