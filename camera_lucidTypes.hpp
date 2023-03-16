@@ -16,7 +16,6 @@
  */
 
 namespace camera_lucid {
-
     enum BinningSelector {
         BINNING_SELECTOR_DIGITAL = 0,
         BINNING_SELECTOR_SENSOR = 1
@@ -75,13 +74,6 @@ namespace camera_lucid {
         "LowLatency",
         "PTPSync"};
 
-    struct PTPSync {
-        /** Enable/Disable ptp sync
-         *  With ptp, all cameras must be configured as so and exposure auto must be OFF
-         */
-        bool enable_ptp = false;
-    };
-
     struct BinningConfig {
         /** Selects which binning engine is controlled by the BinningHorizontal and
          * BinningVertical features. */
@@ -127,6 +119,20 @@ namespace camera_lucid {
         GainSelector gain_selector = GainSelector::GAIN_SELECTOR_ALL;
     };
 
+    struct PTPConfig {
+        /** Whether PTP support is enabled or not */
+        bool enabled = false;
+        /** Whether this camera should only configure itself as a slave, or
+         * could be master */
+        bool slave_only = false;
+        /** PTP Synchronization timeout
+         *
+         * If set, the component will wait for the camera's PTP clock to either become
+         * master, or get synchronized for this long. It will raise after this timeout
+         */
+        base::Time synchronization_timeout;
+    };
+
     struct TransmissionConfig {
         /** Whether the camera controls data transfer (false), or the component (true) */
         bool explicit_data_transfer = false;
@@ -147,6 +153,12 @@ namespace camera_lucid {
     };
 
     struct ImageConfig {
+        /** Control when/how acquisition starts on the camera*/
+        AcquisitionStartMode acquisition_start_mode = ACQUISITION_START_MODE_NORMAL;
+
+        /** Specifies the frequency in which frames are acquired */
+        double frame_rate = 24.0;
+
         /** Timeout for frame acquisition.*/
         base::Time frame_timeout = base::Time::fromMilliseconds(500);
         /** Maximum number of timeouts every period based on check_image_status, after
@@ -157,9 +169,6 @@ namespace camera_lucid {
         int max_incomplete_images = 10;
         /** Period to check the amount of acquisition timeouts and incomplete images.*/
         base::Time check_image_status = base::Time::fromSeconds(1);
-        /** Specifies the frequency in which frames are acquired. Note that
-         * TriggerMode must be off for this parameter to take effect.*/
-        double frame_rate = 15.0;
         /** Image format*/
         base::samples::frame::frame_mode_t format =
             base::samples::frame::frame_mode_t::MODE_BAYER_RGGB;
@@ -191,8 +200,6 @@ namespace camera_lucid {
         /** Choose the temperature sensor*/
         DeviceTemperatureSelector temperature_selector =
             DeviceTemperatureSelector::DEVICE_TEMPERATURE_SELECTOR_SENSOR;
-        /** configure PTPSync*/
-        PTPSync ptp_sync;
     };
 
     struct CameraInfo {

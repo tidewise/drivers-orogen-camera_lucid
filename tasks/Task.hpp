@@ -119,6 +119,7 @@ argument.
         Arena::IDevice* connectToCamera(System& system);
         void switchOverAccess(Arena::IDevice& device);
         void configureCamera(Arena::IDevice& device, System& system);
+        void ptpConfiguration(Arena::IDevice& device);
         void factoryReset(Arena::IDevice* device, System& system);
         void acquisitionConfiguration(Arena::IDevice& device);
         void ptpSyncConfiguration(Arena::IDevice& device, System& system);
