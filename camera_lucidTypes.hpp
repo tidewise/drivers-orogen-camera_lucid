@@ -80,19 +80,6 @@ namespace camera_lucid {
          *  With ptp, all cameras must be configured as so and exposure auto must be OFF
          */
         bool enable_ptp = false;
-        /* Timeout during Master/Slave configuration (usually it configures up to 40s
-         * accorgind to documentation)*/
-        base::Time sync_timeout = base::Time::fromMilliseconds(50000);
-        /** Device link speed => 1 Gbps = 125000000 Bps */
-        int link_speed = 125000000;
-        /** Packet size, mtu 9000 is jumbo*/
-        int packet_size = 1500;
-        /** Number of cameras on the ptp*/
-        int number_of_cameras = 1;
-        /** Camera number to calculate scpd and scftd, starting at 0*/
-        int camera_number = 0;
-        /** Buffer percentage, usually from 10 to 30%*/
-        float buffer_percentage = 0.1093;
     };
 
     struct BinningConfig {
@@ -141,12 +128,22 @@ namespace camera_lucid {
     };
 
     struct TransmissionConfig {
-        /** Whether the camera controls data transfer, or the component */
+        /** Whether the camera controls data transfer (false), or the component (true) */
         bool explicit_data_transfer = false;
-        /** Calculating Packet Delay (GevSCPD) */
-        long gev_scpd;
-        /** Transmission Delay (GevSCFTD) for x # of cameras */
-        long gev_scftd;
+        /** Delay between two packets sent by the camera in nanoseconds
+         *
+         * There is no sound default, but there has to always be a delay. Set to zero to
+         * keep the camera's current value
+         */
+        uint64_t packet_delay = 0;
+
+        /** Delay between acquisition and transmission of frames
+         *
+         * The default is zero. Use non-zero values to interleave transmission of
+         * different cameras, when the cameras have synchronized acquisition (e.g.
+         * using PTPSync)
+         */
+        uint64_t frame_transmission_delay = 0;
     };
 
     struct ImageConfig {

@@ -280,28 +280,14 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
             _image_config.get().depth)
             .c_str());
 
-    if (_transmission_config.get().explicit_data_transfer) {
-        Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
-            "TransferControlMode",
-            "UserControlled");
-        Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
-            "TransferOperationMode",
-            "Continuous");
-        Arena::ExecuteNode(device.GetNodeMap(), "TransferStop");
-        transmissionConfiguration(device);
-    }
-    else {
-        Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
-            "TransferControlMode",
-            "Automatic");
-    }
-
     // When horizontal binning is used, horizontal decimation (if supported) is not
     // available. When vertical binning is used, vertical decimation (if supported) is
     // not available.
 
     // If the camera is acquiring images, AcquisitionStop must be called before
     // adjusting binning settings.
+
+    transmissionConfiguration(device);
     binningConfiguration(device);
     decimationConfiguration(device);
     dimensionsConfiguration(device);
@@ -466,14 +452,31 @@ string Task::convertFrameModeToPixelFormat(frame_mode_t format, uint8_t data_dep
 
 void Task::transmissionConfiguration(Arena::IDevice& device)
 {
-    GenApi::CIntegerPtr stream_channel_packet_delay =
-        device.GetNodeMap()->GetNode("GevSCPD");
-    stream_channel_packet_delay->SetValue(_transmission_config.get().gev_scpd);
+    auto config = _transmission_config.get();
+    if (config.packet_delay) {
+        GenApi::CIntegerPtr stream_channel_packet_delay =
+            device.GetNodeMap()->GetNode("GevSCPD");
+        stream_channel_packet_delay->SetValue(config.packet_delay);
+    }
 
     GenApi::CIntegerPtr stream_channel_frame_transmission_delay =
         device.GetNodeMap()->GetNode("GevSCFTD");
-    stream_channel_frame_transmission_delay->SetValue(
-        _transmission_config.get().gev_scftd);
+    stream_channel_frame_transmission_delay->SetValue(config.frame_transmission_delay);
+
+    if (_transmission_config.get().explicit_data_transfer) {
+        Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
+            "TransferControlMode",
+            "UserControlled");
+        Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
+            "TransferOperationMode",
+            "Continuous");
+        Arena::ExecuteNode(device.GetNodeMap(), "TransferStop");
+    }
+    else {
+        Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
+            "TransferControlMode",
+            "Automatic");
+    }
 }
 
 void Task::ptpSyncConfiguration(Arena::IDevice& device, System& system)
@@ -520,26 +523,6 @@ void Task::ptpSyncConfiguration(Arena::IDevice& device, System& system)
     else {
         ptp_sync_frame_rate->SetValue(_image_config.get().frame_rate);
     }
-
-    /* For more information, please check:
-    https://support.thinklucid.com/app-note-bandwidth-sharing-in-multi-camera-systems
-    */
-    long packet_delay_ns = (1 + ptp_config.buffer_percentage) * ptp_config.packet_size *
-                           pow(10, 9) / ptp_config.link_speed;
-    // Firmware expects a value that is a multiple of 8, do so while rounding up
-    packet_delay_ns = ((packet_delay_ns + 7) / 8) * 8;
-
-    long scpd = packet_delay_ns * (ptp_config.number_of_cameras - 1);
-
-    GenApi::CIntegerPtr stream_channel_packet_delay =
-        device.GetNodeMap()->GetNode("GevSCPD");
-    stream_channel_packet_delay->SetValue(scpd);
-
-    long scftd = packet_delay_ns * ptp_config.camera_number;
-
-    GenApi::CIntegerPtr stream_channel_frame_transmission_delay =
-        device.GetNodeMap()->GetNode("GevSCFTD");
-    stream_channel_frame_transmission_delay->SetValue(scftd);
 
     waitDevicePTPNegotiation(device, system);
 }
@@ -903,14 +886,6 @@ void Task::acquisitionConfiguration(Arena::IDevice& device)
 {
     LOG_INFO_S << "Configuring Acquisition." << endl;
     Arena::SetNodeValue<bool>(device.GetNodeMap(), "PtpEnable", false);
-
-    GenApi::CIntegerPtr stream_channel_packet_delay =
-        device.GetNodeMap()->GetNode("GevSCPD");
-    stream_channel_packet_delay->SetValue(80);
-
-    GenApi::CIntegerPtr stream_channel_frame_transmission_delay =
-        device.GetNodeMap()->GetNode("GevSCFTD");
-    stream_channel_frame_transmission_delay->SetValue(0);
 
     LOG_INFO_S << "Set acquisition start mode to 'Normal'" << endl;
     Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
