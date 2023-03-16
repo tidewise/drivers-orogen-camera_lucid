@@ -19,8 +19,32 @@ using_library "camera_lucid_arenasdk"
 import_types_from "std"
 import_types_from "base"
 
+OroGen::Spec::Deployment.register_global_initializer(:lucid_arena_sdk)
+if defined?(OroGen::Gen::RTT_CPP::Deployment)
+    OroGen::Gen::RTT_CPP::Deployment.register_global_initializer(
+        :lucid_arena_sdk,
+        deployment_cmake: <<~GST_DEPLOYMENT_CMAKE,
+            orogen_pkg_check_modules(camera_lucid_arenasdk REQUIRED camera_lucid_arenasdk)
+            include_directories(${camera_lucid_arenasdk_INCLUDE_DIRS})
+            add_definitions(${camera_lucid_arenasdk_CFLAGS_OTHER})
+            link_directories(${camera_lucid_arenasdk_LIBRARY_DIRS})
+            target_link_libraries(<%= deployer.name %> ${camera_lucid_arenasdk_LIBRARIES})
+        GST_DEPLOYMENT_CMAKE
+        global_scope: <<~GST_TOPLEVEL,
+            #include <camera_lucid/System.hpp>
+        GST_TOPLEVEL
+        init: <<~GST_INIT,
+            camera_lucid::System::Init();
+        GST_INIT
+        exit: <<~GST_EXIT
+            camera_lucid::System::Deinit();
+        GST_EXIT
+    )
+end
+
 task_context "Task" do
     needs_configuration
+    needs_global_initializer :lucid_arena_sdk
 
     # Camera Configuration:
     # Ip, reset timeout, and update info frequency

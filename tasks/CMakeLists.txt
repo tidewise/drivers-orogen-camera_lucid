@@ -2,10 +2,9 @@
 
 include(camera_lucidTaskLib)
 ADD_LIBRARY(${CAMERA_LUCID_TASKLIB_NAME} SHARED
-    ${CAMERA_LUCID_TASKLIB_SOURCES})
+    ${CAMERA_LUCID_TASKLIB_SOURCES} System.cpp)
 add_dependencies(${CAMERA_LUCID_TASKLIB_NAME}
     regen-typekit)
-
 
 TARGET_LINK_LIBRARIES(${CAMERA_LUCID_TASKLIB_NAME}
     ${OrocosRTT_LIBRARIES}
@@ -20,6 +19,10 @@ INSTALL(TARGETS ${CAMERA_LUCID_TASKLIB_NAME}
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib/orocos)
 
-INSTALL(FILES ${CAMERA_LUCID_TASKLIB_HEADERS}
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -E create_symlink ${PROJECT_SOURCE_DIR}/tasks/System.hpp
+            ${PROJECT_SOURCE_DIR}/.orogen/typekit/types/camera_lucid/System.hpp
+)
+INSTALL(FILES ${CAMERA_LUCID_TASKLIB_HEADERS} System.hpp
     DESTINATION include/orocos/camera_lucid)
 

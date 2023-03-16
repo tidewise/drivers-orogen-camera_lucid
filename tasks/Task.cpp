@@ -45,8 +45,8 @@ struct RequeueImageFrame {
 
 struct ArenaDevice {
     Arena::IDevice* device = nullptr;
-    Arena::ISystem* system = nullptr;
-    ArenaDevice(Arena::IDevice* v_device, Arena::ISystem& v_system)
+    System* system = nullptr;
+    ArenaDevice(Arena::IDevice* v_device, System& v_system)
         : device(v_device)
         , system(&v_system)
     {
@@ -71,7 +71,7 @@ struct ArenaDevice {
         return v_device;
     }
 
-    void reset(Arena::IDevice* v_device, Arena::ISystem& v_system)
+    void reset(Arena::IDevice* v_device, System& v_system)
     {
         destroyDevice();
         device = v_device;
@@ -83,43 +83,6 @@ struct ArenaDevice {
         if (device != nullptr) {
             system->DestroyDevice(device);
             device = nullptr;
-        }
-    }
-};
-
-struct ArenaSystem {
-    Arena::ISystem* system = nullptr;
-    ArenaSystem()
-    {
-    }
-    ArenaSystem(Arena::ISystem* v_system)
-        : system(v_system)
-    {
-    }
-    ~ArenaSystem()
-    {
-        closeSystem();
-    }
-
-    ArenaSystem(ArenaSystem const&) = delete;
-    ArenaSystem& operator=(ArenaSystem const&) = delete;
-
-    Arena::ISystem& operator*()
-    {
-        return *system;
-    }
-
-    Arena::ISystem* release()
-    {
-        Arena::ISystem* v_system = system;
-        system = nullptr;
-        return v_system;
-    }
-    void closeSystem()
-    {
-        if (system != nullptr) {
-            Arena::CloseSystem(system);
-            system = nullptr;
         }
     }
 };
@@ -148,27 +111,26 @@ bool Task::configureHook()
         return false;
     }
     try {
-        ArenaSystem system(Arena::OpenSystem());
-        ArenaDevice device(connectToCamera(*system), *system);
+        auto& system = System::Instance();
+        ArenaDevice device(connectToCamera(system), system);
         switchOverAccess(*device); // get() returns a reference
 
         if (_camera_config.get().factory_reset) {
             LOG_INFO_S << "Performing Factory Reset" << endl;
-            factoryReset(device.release(), *system);
+            factoryReset(device.release(), system);
 
-            device.reset(connectToCamera(*system), *system);
+            device.reset(connectToCamera(system), system);
             switchOverAccess(*device);
         }
 
         if (_camera_config.get().ptp_sync.enable_ptp) {
-            ptpSyncConfiguration(*device, *system);
+            ptpSyncConfiguration(*device, system);
         }
         else {
             acquisitionConfiguration(*device);
         }
 
-        configureCamera(*device, *system);
-        m_system = system.release(); // returns pointer
+        configureCamera(*device, system);
         m_device = device.release(); // returns pointer
     }
     catch (GenICam::GenericException& ge) {
@@ -219,18 +181,15 @@ void Task::cleanupHook()
 {
     TaskBase::cleanupHook();
     try {
-        m_system->DestroyDevice(m_device);
-        Arena::CloseSystem(m_system);
+        System::Instance().DestroyDevice(m_device);
     }
     catch (GenICam::GenericException& ge) {
         LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
         throw std::runtime_error(ge.what());
     }
-    m_system = nullptr;
-    m_device = nullptr;
 }
 
-Arena::IDevice* Task::connectToCamera(Arena::ISystem& system)
+Arena::IDevice* Task::connectToCamera(System& system)
 {
     LOG_INFO_S << "Looking for camera" << endl;
     m_ip = _camera_config.get().ip;
@@ -293,7 +252,7 @@ void Task::switchOverAccess(Arena::IDevice& device)
     throw runtime_error("Task failed to retrieved the Camera Read/Write Access.");
 }
 
-void Task::configureCamera(Arena::IDevice& device, Arena::ISystem& system)
+void Task::configureCamera(Arena::IDevice& device, System& system)
 {
     LOG_INFO_S << "Configuring camera." << endl;
 
@@ -484,7 +443,7 @@ string Task::convertFrameModeToPixelFormat(frame_mode_t format, uint8_t data_dep
     }
 }
 
-void Task::ptpSyncConfiguration(Arena::IDevice& device, Arena::ISystem& system)
+void Task::ptpSyncConfiguration(Arena::IDevice& device, System& system)
 {
     LOG_INFO_S << "Enabling PTP Sync" << endl;
     Arena::SetNodeValue<bool>(device.GetNodeMap(), "PtpEnable", true);
@@ -552,8 +511,7 @@ void Task::ptpSyncConfiguration(Arena::IDevice& device, Arena::ISystem& system)
     waitDevicePTPNegotiation(device, system);
 }
 
-void Task::waitDevicePTPNegotiation(Arena::IDevice& current_device,
-    Arena::ISystem& system)
+void Task::waitDevicePTPNegotiation(Arena::IDevice& current_device, System& system)
 {
     // Wait for devices to negotiate their PTP relationship
     //    Before starting any PTP-dependent actions, it is important to wait for
@@ -1024,7 +982,7 @@ void Task::analogConfiguration(Arena::IDevice& device)
     }
 }
 
-void Task::factoryReset(Arena::IDevice* device, Arena::ISystem& system)
+void Task::factoryReset(Arena::IDevice* device, System& system)
 {
     ArenaDevice guard(device, system);
 

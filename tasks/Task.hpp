@@ -4,6 +4,7 @@
 #define CAMERA_LUCID_TASK_TASK_HPP
 
 #include "Arena/ArenaApi.h"
+#include "System.hpp"
 #include "camera_lucid/TaskBase.hpp"
 #include <string>
 
@@ -35,7 +36,6 @@ argument.
 
     private:
         std::string m_ip = "";
-        Arena::ISystem* m_system = nullptr;
         Arena::IDevice* m_device = nullptr;
         RTT::extras::ReadOnlyPointer<base::samples::frame::Frame> m_frame;
         // The switchover key to be used
@@ -113,14 +113,13 @@ argument.
          */
         void cleanupHook();
 
-        Arena::IDevice* connectToCamera(Arena::ISystem& system);
+        Arena::IDevice* connectToCamera(System& system);
         void switchOverAccess(Arena::IDevice& device);
-        void configureCamera(Arena::IDevice& device, Arena::ISystem& system);
-        void factoryReset(Arena::IDevice* device, Arena::ISystem& system);
+        void configureCamera(Arena::IDevice& device, System& system);
+        void factoryReset(Arena::IDevice* device, System& system);
         void acquisitionConfiguration(Arena::IDevice& device);
-        void ptpSyncConfiguration(Arena::IDevice& device, Arena::ISystem& system);
-        void waitDevicePTPNegotiation(Arena::IDevice& current_device,
-            Arena::ISystem& system);
+        void ptpSyncConfiguration(Arena::IDevice& device, System& system);
+        void waitDevicePTPNegotiation(Arena::IDevice& current_device, System& system);
         void binningConfiguration(Arena::IDevice& device);
         void decimationConfiguration(Arena::IDevice& device);
         void dimensionsConfiguration(Arena::IDevice& device);
