@@ -42,6 +42,9 @@ argument.
         int64_t m_switchover_key = 0x1000;
 
         base::Time m_last_message;
+        base::Time m_check_status_deadline;
+        int m_incomplete_images_count = 0;
+        int m_acquisition_timeout_count = 0;
 
     public:
         /** TaskContext constructor for Task

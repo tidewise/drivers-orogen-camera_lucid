@@ -322,7 +322,6 @@ void Task::acquireFrame()
 {
     RequeueImageFrame frame;
     try {
-        // This was just the workaround to make it work. Not the best place to add it
         if (_transmission_config.get().explicit_data_transfer) {
             Arena::ExecuteNode(m_device->GetNodeMap(), "TransferStart");
         }
@@ -333,17 +332,36 @@ void Task::acquireFrame()
             Arena::ExecuteNode(m_device->GetNodeMap(), "TransferStop");
         }
     }
-    catch (GenICam::GenericException& ge) {
+    catch (GenICam::TimeoutException& ge) {
         if (_transmission_config.get().explicit_data_transfer) {
             Arena::ExecuteNode(m_device->GetNodeMap(), "TransferStop");
         }
+        LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
+        m_acquisition_timeout_count++;
+        return;
+    }
+    catch (GenICam::GenericException& ge) {
         LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
         throw runtime_error(ge.what());
     }
 
     if (frame.image->IsIncomplete()) {
         LOG_ERROR_S << "Image is not complete!! " << endl;
+        m_incomplete_images_count++;
         return;
+    }
+
+    if (base::Time::now() > m_check_status_deadline) {
+        if (m_acquisition_timeout_count > _image_config.get().max_acquisition_timeout) {
+            throw runtime_error("Exceded maximum number of timeouts!!");
+        }
+        if (m_incomplete_images_count > _image_config.get().max_incomplete_images) {
+            throw runtime_error("Exceded maximum number of incomplete images!!");
+        }
+        m_incomplete_images_count = 0;
+        m_acquisition_timeout_count = 0;
+        m_check_status_deadline =
+            base::Time::now() + _image_config.get().check_image_status;
     }
 
     size_t size = frame.image->GetSizeFilled();

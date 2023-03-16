@@ -152,8 +152,16 @@ namespace camera_lucid {
     struct ImageConfig {
         /** Timeout for frame acquisition.*/
         base::Time frame_timeout = base::Time::fromMilliseconds(500);
-        /** Specifies the frequency in which frames are acquired. Note that TriggerMode
-         * must be off for this parameter to take effect.*/
+        /** Maximum number of timeouts every period based on check_image_status, after
+         * this value it will return an exeption*/
+        int max_acquisition_timeout = 10;
+        /** Maximum number of incomplete images every period based on check_image_status,
+         * after this value it will return an exeption*/
+        int max_incomplete_images = 10;
+        /** Period to check the amount of acquisition timeouts and incomplete images.*/
+        base::Time check_image_status = base::Time::fromSeconds(1);
+        /** Specifies the frequency in which frames are acquired. Note that
+         * TriggerMode must be off for this parameter to take effect.*/
         double frame_rate = 15.0;
         /** Image format*/
         base::samples::frame::frame_mode_t format =
