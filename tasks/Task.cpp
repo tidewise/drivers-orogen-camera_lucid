@@ -293,7 +293,6 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
         Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
             "TransferControlMode",
             "Automatic");
-        Arena::ExecuteNode(device.GetNodeMap(), "TransferStart");
     }
 
     // When horizontal binning is used, horizontal decimation (if supported) is not
