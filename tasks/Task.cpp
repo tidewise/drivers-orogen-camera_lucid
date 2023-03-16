@@ -280,7 +280,7 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
             _image_config.get().depth)
             .c_str());
 
-    if (_camera_config.get().explicit_data_transfer) {
+    if (_transmission_config.get().explicit_data_transfer) {
         Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
             "TransferControlMode",
             "UserControlled");
@@ -288,6 +288,7 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
             "TransferOperationMode",
             "Continuous");
         Arena::ExecuteNode(device.GetNodeMap(), "TransferStop");
+        transmissionConfiguration(device);
     }
     else {
         Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
@@ -322,18 +323,18 @@ void Task::acquireFrame()
     RequeueImageFrame frame;
     try {
         // This was just the workaround to make it work. Not the best place to add it
-        if (_camera_config.get().explicit_data_transfer) {
+        if (_transmission_config.get().explicit_data_transfer) {
             Arena::ExecuteNode(m_device->GetNodeMap(), "TransferStart");
         }
         frame.reset(
             m_device->GetImage(_image_config.get().frame_timeout.toMilliseconds()),
             m_device);
-        if (_camera_config.get().explicit_data_transfer) {
+        if (_transmission_config.get().explicit_data_transfer) {
             Arena::ExecuteNode(m_device->GetNodeMap(), "TransferStop");
         }
     }
     catch (GenICam::GenericException& ge) {
-        if (_camera_config.get().explicit_data_transfer) {
+        if (_transmission_config.get().explicit_data_transfer) {
             Arena::ExecuteNode(m_device->GetNodeMap(), "TransferStop");
         }
         LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
@@ -443,6 +444,18 @@ string Task::convertFrameModeToPixelFormat(frame_mode_t format, uint8_t data_dep
         default:
             return "";
     }
+}
+
+void Task::transmissionConfiguration(Arena::IDevice& device)
+{
+    GenApi::CIntegerPtr stream_channel_packet_delay =
+        device.GetNodeMap()->GetNode("GevSCPD");
+    stream_channel_packet_delay->SetValue(_transmission_config.get().gev_scpd);
+
+    GenApi::CIntegerPtr stream_channel_frame_transmission_delay =
+        device.GetNodeMap()->GetNode("GevSCFTD");
+    stream_channel_frame_transmission_delay->SetValue(
+        _transmission_config.get().gev_scftd);
 }
 
 void Task::ptpSyncConfiguration(Arena::IDevice& device, System& system)

@@ -69,6 +69,9 @@ task_context "Task" do
     # Image Configuration
     property "image_config", "camera_lucid/ImageConfig"
 
+    # Transmission configuration
+    property "transmission_config", "camera_lucid/TransmissionConfig"
+
     output_port "frame", ro_ptr("base/samples/frame/Frame")
     output_port "info", "camera_lucid/CameraInfo"
     periodic 0.01

@@ -140,6 +140,15 @@ namespace camera_lucid {
         GainSelector gain_selector = GainSelector::GAIN_SELECTOR_ALL;
     };
 
+    struct TransmissionConfig {
+        /** Whether the camera controls data transfer, or the component */
+        bool explicit_data_transfer = false;
+        /** Calculating Packet Delay (GevSCPD) */
+        long gev_scpd;
+        /** Transmission Delay (GevSCFTD) for x # of cameras */
+        long gev_scftd;
+    };
+
     struct ImageConfig {
         /** Timeout for frame acquisition.*/
         base::Time frame_timeout = base::Time::fromMilliseconds(500);
@@ -179,8 +188,6 @@ namespace camera_lucid {
             DeviceTemperatureSelector::DEVICE_TEMPERATURE_SELECTOR_SENSOR;
         /** configure PTPSync*/
         PTPSync ptp_sync;
-        /** Whether the camera controls data transfer, or the component */
-        bool explicit_data_transfer = false;
     };
 
     struct CameraInfo {
