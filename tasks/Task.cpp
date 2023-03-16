@@ -333,6 +333,9 @@ void Task::acquireFrame()
         }
     }
     catch (GenICam::GenericException& ge) {
+        if (_camera_config.get().explicit_data_transfer) {
+            Arena::ExecuteNode(m_device->GetNodeMap(), "TransferStop");
+        }
         LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
         throw runtime_error(ge.what());
     }
