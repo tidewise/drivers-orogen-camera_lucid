@@ -792,31 +792,24 @@ void Task::acquisitionConfiguration(Arena::IDevice& device)
         "AcquisitionMode",
         "Continuous");
 
-    LOG_INFO_S << "Enable Acquisition Frame Rate." << endl;
-    // Enable Acquisition Frame Rate
-    Arena::SetNodeValue<bool>(device.GetNodeMap(), "AcquisitionFrameRateEnable", true);
-
+    LOG_INFO_S << "Configure Acquisition Frame Rate." << endl;
     GenApi::CFloatPtr acquisition_frame_rate =
         device.GetNodeMap()->GetNode("AcquisitionFrameRate");
-    float acquisition_frame_rate_value =
-        config.acquisition_start_mode == ACQUISITION_START_MODE_PTPSYNC
-            ? acquisition_frame_rate->GetMax()
-            : config.frame_rate;
-    acquisition_frame_rate->SetValue(acquisition_frame_rate_value);
-    LOG_INFO_S << "Setting Acquisition Frame Rate to " << acquisition_frame_rate_value
-               << " FPS" << endl;
-    auto current =
-        Arena::GetNodeValue<double>(device.GetNodeMap(), "AcquisitionFrameRate");
-    if (abs(current - acquisition_frame_rate_value) >= 0.1) {
-        LOG_ERROR_S << "Frame rate was not set correctly. Setpoint: " << config.frame_rate
-                    << ". Current: " << current << endl;
-        throw runtime_error("Frame rate value differs.");
-    }
-
     if (config.acquisition_start_mode == ACQUISITION_START_MODE_PTPSYNC) {
+        acquisition_frame_rate->SetValue(acquisition_frame_rate->GetMax());
+
         GenApi::CFloatPtr ptp_sync_frame_rate =
             device.GetNodeMap()->GetNode("PTPSyncFrameRate");
         ptp_sync_frame_rate->SetValue(config.frame_rate);
+    }
+    else {
+        // Enable Acquisition Frame Rate
+        Arena::SetNodeValue<bool>(device.GetNodeMap(),
+            "AcquisitionFrameRateEnable",
+            true);
+        acquisition_frame_rate->SetValue(config.frame_rate);
+        LOG_INFO_S << "Setting Acquisition Frame Rate to " << config.frame_rate << " FPS"
+                   << endl;
     }
 }
 
