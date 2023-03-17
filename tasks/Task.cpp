@@ -487,11 +487,10 @@ void Task::ptpConfiguration(Arena::IDevice& device)
 void Task::transmissionConfiguration(Arena::IDevice& device)
 {
     auto config = _transmission_config.get();
-    if (config.packet_delay) {
-        GenApi::CIntegerPtr stream_channel_packet_delay =
-            device.GetNodeMap()->GetNode("GevSCPD");
-        stream_channel_packet_delay->SetValue(config.packet_delay);
-    }
+
+    GenApi::CIntegerPtr stream_channel_packet_delay =
+        device.GetNodeMap()->GetNode("GevSCPD");
+    stream_channel_packet_delay->SetValue(config.packet_delay);
 
     GenApi::CIntegerPtr stream_channel_frame_transmission_delay =
         device.GetNodeMap()->GetNode("GevSCFTD");
