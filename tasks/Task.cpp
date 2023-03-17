@@ -602,7 +602,6 @@ void Task::binningConfiguration(Arena::IDevice& device)
 
 void Task::decimationConfiguration(Arena::IDevice& device)
 {
-
     // Initial check if sensor decimation is supported.
     //    Entry may not be in XML file. Entry may be in the file but set to
     //    unreadable or unavailable. Note: there is a case where sensor
@@ -760,23 +759,9 @@ void Task::exposureConfiguration(Arena::IDevice& device)
                    << _image_config.get().exposure_time.toMicroseconds() << "us" << endl;
         GenApi::CFloatPtr exposure_time = device.GetNodeMap()->GetNode("ExposureTime");
 
-        auto max_exposure_time = exposure_time->GetMax();
-        auto min_exposure_time = exposure_time->GetMin();
         auto setpoint = _image_config.get().exposure_time.toMicroseconds();
-
-        if (setpoint > max_exposure_time) {
-            LOG_WARN_S << "Exposure time exceeds maximum value. Setting Exposure to "
-                          "maximum value: "
-                       << max_exposure_time << "us" << endl;
-            setpoint = max_exposure_time;
-        }
-        else if (setpoint < min_exposure_time) {
-            LOG_WARN_S << "Exposure time exceeds minimum value. Setting Exposure to "
-                          "minimum value: "
-                       << min_exposure_time << "us" << endl;
-            setpoint = min_exposure_time;
-        }
-        exposure_time->SetValue(static_cast<double>(setpoint));
+        exposure_time->SetValue(
+            static_cast<double>(setpoint));
 
         auto current = exposure_time->GetValue();
         if (abs(current - setpoint) >= 10) {
@@ -871,22 +856,7 @@ void Task::analogConfiguration(Arena::IDevice& device)
         LOG_INFO_S << "Setting gain to: " << _analog_controller_config.get().gain << endl;
         GenApi::CFloatPtr gain = device.GetNodeMap()->GetNode("Gain");
 
-        auto max_gain = gain->GetMax();
-        auto min_gain = gain->GetMin();
         auto setpoint = _analog_controller_config.get().gain;
-
-        if (setpoint > max_gain) {
-            LOG_WARN_S << "Gain exceeds maximum value. Setting Exposure to "
-                          "maximum value: "
-                       << max_gain << endl;
-            setpoint = max_gain;
-        }
-        else if (setpoint < min_gain) {
-            LOG_WARN_S << "Gain exceeds minimum value. Setting Exposure to "
-                          "minimum value: "
-                       << min_gain << endl;
-            setpoint = min_gain;
-        }
         gain->SetValue(static_cast<double>(setpoint));
 
         auto current = gain->GetValue();
