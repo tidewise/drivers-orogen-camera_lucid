@@ -45,8 +45,8 @@ struct RequeueImageFrame {
 
 struct ArenaDevice {
     Arena::IDevice* device = nullptr;
-    Arena::ISystem* system = nullptr;
-    ArenaDevice(Arena::IDevice* v_device, Arena::ISystem& v_system)
+    System* system = nullptr;
+    ArenaDevice(Arena::IDevice* v_device, System& v_system)
         : device(v_device)
         , system(&v_system)
     {
@@ -71,7 +71,7 @@ struct ArenaDevice {
         return v_device;
     }
 
-    void reset(Arena::IDevice* v_device, Arena::ISystem& v_system)
+    void reset(Arena::IDevice* v_device, System& v_system)
     {
         destroyDevice();
         device = v_device;
@@ -83,43 +83,6 @@ struct ArenaDevice {
         if (device != nullptr) {
             system->DestroyDevice(device);
             device = nullptr;
-        }
-    }
-};
-
-struct ArenaSystem {
-    Arena::ISystem* system = nullptr;
-    ArenaSystem()
-    {
-    }
-    ArenaSystem(Arena::ISystem* v_system)
-        : system(v_system)
-    {
-    }
-    ~ArenaSystem()
-    {
-        closeSystem();
-    }
-
-    ArenaSystem(ArenaSystem const&) = delete;
-    ArenaSystem& operator=(ArenaSystem const&) = delete;
-
-    Arena::ISystem& operator*()
-    {
-        return *system;
-    }
-
-    Arena::ISystem* release()
-    {
-        Arena::ISystem* v_system = system;
-        system = nullptr;
-        return v_system;
-    }
-    void closeSystem()
-    {
-        if (system != nullptr) {
-            Arena::CloseSystem(system);
-            system = nullptr;
         }
     }
 };
@@ -148,20 +111,19 @@ bool Task::configureHook()
         return false;
     }
     try {
-        ArenaSystem system(Arena::OpenSystem());
-        ArenaDevice device(connectToCamera(*system), *system);
+        auto& system = System::Instance();
+        ArenaDevice device(connectToCamera(system), system);
         switchOverAccess(*device); // get() returns a reference
 
         if (_camera_config.get().factory_reset) {
             LOG_INFO_S << "Performing Factory Reset" << endl;
-            factoryReset(device.release(), *system);
+            factoryReset(device.release(), system);
 
-            device.reset(connectToCamera(*system), *system);
+            device.reset(connectToCamera(system), system);
             switchOverAccess(*device);
         }
 
-        configureCamera(*device, *system);
-        m_system = system.release(); // returns pointer
+        configureCamera(*device, system);
         m_device = device.release(); // returns pointer
     }
     catch (GenICam::GenericException& ge) {
@@ -185,12 +147,34 @@ bool Task::startHook()
         LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
         throw std::runtime_error(ge.what());
     }
+
+    m_acquisition_timeouts_count = 0;
+    m_incomplete_images_count = 0;
+    m_acquisition_timeouts_sum = 0;
+    m_incomplete_images_sum = 0;
+    m_check_status_deadline = base::Time::now();
     return true;
 }
 void Task::updateHook()
 {
     TaskBase::updateHook();
+
     acquireFrame();
+
+    if (m_acquisition_timeouts_count > _image_config.get().max_acquisition_timeout) {
+        throw runtime_error("Exceded maximum number of timeouts!!");
+    }
+    if (m_incomplete_images_count > _image_config.get().max_incomplete_images) {
+        throw runtime_error("Exceded maximum number of incomplete images!!");
+    }
+
+    if (base::Time::now() > m_check_status_deadline) {
+        m_incomplete_images_count = 0;
+        m_acquisition_timeouts_count = 0;
+        m_check_status_deadline =
+            base::Time::now() + _image_config.get().check_image_status;
+    }
+
     collectInfo();
 }
 void Task::errorHook()
@@ -212,18 +196,15 @@ void Task::cleanupHook()
 {
     TaskBase::cleanupHook();
     try {
-        m_system->DestroyDevice(m_device);
-        Arena::CloseSystem(m_system);
+        System::Instance().DestroyDevice(m_device);
     }
     catch (GenICam::GenericException& ge) {
         LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
         throw std::runtime_error(ge.what());
     }
-    m_system = nullptr;
-    m_device = nullptr;
 }
 
-Arena::IDevice* Task::connectToCamera(Arena::ISystem& system)
+Arena::IDevice* Task::connectToCamera(System& system)
 {
     LOG_INFO_S << "Looking for camera" << endl;
     m_ip = _camera_config.get().ip;
@@ -286,16 +267,17 @@ void Task::switchOverAccess(Arena::IDevice& device)
     throw runtime_error("Task failed to retrieved the Camera Read/Write Access.");
 }
 
-void Task::configureCamera(Arena::IDevice& device, Arena::ISystem& system)
+void Task::configureCamera(Arena::IDevice& device, System& system)
 {
     LOG_INFO_S << "Configuring camera." << endl;
-    acquisitionConfiguration(device);
 
     LOG_INFO_S << "Setting StreamBufferHandlingMode." << endl;
     Arena::SetNodeValue<GenICam::gcstring>(device.GetTLStreamNodeMap(),
         "StreamBufferHandlingMode",
         "NewestOnly");
 
+    // Use max supported packet size. We use transfer control to ensure that only one
+    // camera is transmitting at a time.
     LOG_INFO_S << "Setting StreamAutoNegotiatePacketSize." << endl;
     Arena::SetNodeValue<bool>(device.GetTLStreamNodeMap(),
         "StreamAutoNegotiatePacketSize",
@@ -319,12 +301,16 @@ void Task::configureCamera(Arena::IDevice& device, Arena::ISystem& system)
 
     // If the camera is acquiring images, AcquisitionStop must be called before
     // adjusting binning settings.
+
+    ptpConfiguration(device);
+    transmissionConfiguration(device);
+    acquisitionConfiguration(device);
     binningConfiguration(device);
     decimationConfiguration(device);
     dimensionsConfiguration(device);
     exposureConfiguration(device);
     analogConfiguration(device);
-    // infoConfiguration(device);
+    infoConfiguration(device);
 
     Frame* frame = new Frame(_image_config.get().width,
         _image_config.get().height,
@@ -339,9 +325,24 @@ void Task::acquireFrame()
 {
     RequeueImageFrame frame;
     try {
+        if (_transmission_config.get().explicit_data_transfer) {
+            Arena::ExecuteNode(m_device->GetNodeMap(), "TransferStart");
+        }
         frame.reset(
             m_device->GetImage(_image_config.get().frame_timeout.toMilliseconds()),
             m_device);
+        if (_transmission_config.get().explicit_data_transfer) {
+            Arena::ExecuteNode(m_device->GetNodeMap(), "TransferStop");
+        }
+    }
+    catch (GenICam::TimeoutException& ge) {
+        if (_transmission_config.get().explicit_data_transfer) {
+            Arena::ExecuteNode(m_device->GetNodeMap(), "TransferStop");
+        }
+        LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
+        m_acquisition_timeouts_count++;
+        m_acquisition_timeouts_sum++;
+        return;
     }
     catch (GenICam::GenericException& ge) {
         LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
@@ -350,6 +351,8 @@ void Task::acquireFrame()
 
     if (frame.image->IsIncomplete()) {
         LOG_ERROR_S << "Image is not complete!! " << endl;
+        m_incomplete_images_count++;
+        m_incomplete_images_sum++;
         return;
     }
 
@@ -453,6 +456,62 @@ string Task::convertFrameModeToPixelFormat(frame_mode_t format, uint8_t data_dep
     }
 }
 
+void Task::ptpConfiguration(Arena::IDevice& device)
+{
+    auto config = _ptp_config.get();
+    Arena::SetNodeValue<bool>(device.GetNodeMap(), "PtpEnable", config.enabled);
+    Arena::SetNodeValue<bool>(device.GetNodeMap(), "PtpSlaveOnly", config.slave_only);
+
+    if (config.synchronization_timeout.isNull()) {
+        return;
+    }
+
+    auto deadline = base::Time::now() + config.synchronization_timeout;
+    while (base::Time::now() < deadline) {
+        auto status =
+            Arena::GetNodeValue<GenICam::gcstring>(device.GetNodeMap(), "PtpStatus");
+        auto servo =
+            Arena::GetNodeValue<GenICam::gcstring>(device.GetNodeMap(), "PtpServoStatus");
+
+        if (status == "Master") {
+            return;
+        }
+        else if (status == "Slave" && servo == "Locked") {
+            return;
+        }
+    }
+
+    throw std::runtime_error("Timed out waiting for PTP to synchronize");
+}
+
+void Task::transmissionConfiguration(Arena::IDevice& device)
+{
+    auto config = _transmission_config.get();
+
+    GenApi::CIntegerPtr stream_channel_packet_delay =
+        device.GetNodeMap()->GetNode("GevSCPD");
+    stream_channel_packet_delay->SetValue(config.packet_delay);
+
+    GenApi::CIntegerPtr stream_channel_frame_transmission_delay =
+        device.GetNodeMap()->GetNode("GevSCFTD");
+    stream_channel_frame_transmission_delay->SetValue(config.frame_transmission_delay);
+
+    if (_transmission_config.get().explicit_data_transfer) {
+        Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
+            "TransferControlMode",
+            "UserControlled");
+        Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
+            "TransferOperationMode",
+            "Continuous");
+        Arena::ExecuteNode(device.GetNodeMap(), "TransferStop");
+    }
+    else {
+        Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
+            "TransferControlMode",
+            "Automatic");
+    }
+}
+
 void Task::binningConfiguration(Arena::IDevice& device)
 {
     // Initial check if sensor binning is supported.
@@ -542,7 +601,6 @@ void Task::binningConfiguration(Arena::IDevice& device)
 
 void Task::decimationConfiguration(Arena::IDevice& device)
 {
-
     // Initial check if sensor decimation is supported.
     //    Entry may not be in XML file. Entry may be in the file but set to
     //    unreadable or unavailable. Note: there is a case where sensor
@@ -700,23 +758,9 @@ void Task::exposureConfiguration(Arena::IDevice& device)
                    << _image_config.get().exposure_time.toMicroseconds() << "us" << endl;
         GenApi::CFloatPtr exposure_time = device.GetNodeMap()->GetNode("ExposureTime");
 
-        auto max_exposure_time = exposure_time->GetMax();
-        auto min_exposure_time = exposure_time->GetMin();
         auto setpoint = _image_config.get().exposure_time.toMicroseconds();
-
-        if (setpoint > max_exposure_time) {
-            LOG_WARN_S << "Exposure time exceeds maximum value. Setting Exposure to "
-                          "maximum value: "
-                       << max_exposure_time << "us" << endl;
-            setpoint = max_exposure_time;
-        }
-        else if (setpoint < min_exposure_time) {
-            LOG_WARN_S << "Exposure time exceeds minimum value. Setting Exposure to "
-                          "minimum value: "
-                       << min_exposure_time << "us" << endl;
-            setpoint = min_exposure_time;
-        }
-        exposure_time->SetValue(static_cast<double>(setpoint));
+        exposure_time->SetValue(
+            static_cast<double>(setpoint));
 
         auto current = exposure_time->GetValue();
         if (abs(current - setpoint) >= 10) {
@@ -729,29 +773,38 @@ void Task::exposureConfiguration(Arena::IDevice& device)
 
 void Task::acquisitionConfiguration(Arena::IDevice& device)
 {
+    auto config = _image_config.get();
+
     LOG_INFO_S << "Configuring Acquisition." << endl;
+
+    LOG_INFO_S << "Set acquisition start mode" << endl;
+    Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
+        "AcquisitionStartMode",
+        acquisition_start_mode_name.at(config.acquisition_start_mode).c_str());
 
     LOG_INFO_S << "Setting Acquisition Mode." << endl;
     Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
         "AcquisitionMode",
         "Continuous");
 
-    LOG_INFO_S << "Enable Acquisition Frame Rate." << endl;
-    // Enable Acquisition Frame Rate
-    Arena::SetNodeValue<bool>(device.GetNodeMap(), "AcquisitionFrameRateEnable", true);
-
-    // get Acquisition Frame Rate node
+    LOG_INFO_S << "Configure Acquisition Frame Rate." << endl;
     GenApi::CFloatPtr acquisition_frame_rate =
         device.GetNodeMap()->GetNode("AcquisitionFrameRate");
-    acquisition_frame_rate->SetValue(_image_config.get().frame_rate);
-    LOG_INFO_S << "Setting Acquisition Frame Rate to " << _image_config.get().frame_rate
-               << " FPS" << endl;
-    auto current =
-        Arena::GetNodeValue<double>(device.GetNodeMap(), "AcquisitionFrameRate");
-    if (abs(current - _image_config.get().frame_rate) >= 0.1) {
-        LOG_ERROR_S << "Frame rate was not set correctly. Setpoint: "
-                    << _image_config.get().frame_rate << ". Current: " << current << endl;
-        throw runtime_error("Frame rate value differs.");
+    if (config.acquisition_start_mode == ACQUISITION_START_MODE_PTPSYNC) {
+        acquisition_frame_rate->SetValue(acquisition_frame_rate->GetMax());
+
+        GenApi::CFloatPtr ptp_sync_frame_rate =
+            device.GetNodeMap()->GetNode("PTPSyncFrameRate");
+        ptp_sync_frame_rate->SetValue(config.frame_rate);
+    }
+    else {
+        // Enable Acquisition Frame Rate
+        Arena::SetNodeValue<bool>(device.GetNodeMap(),
+            "AcquisitionFrameRateEnable",
+            true);
+        acquisition_frame_rate->SetValue(config.frame_rate);
+        LOG_INFO_S << "Setting Acquisition Frame Rate to " << config.frame_rate << " FPS"
+                   << endl;
     }
 }
 
@@ -802,22 +855,7 @@ void Task::analogConfiguration(Arena::IDevice& device)
         LOG_INFO_S << "Setting gain to: " << _analog_controller_config.get().gain << endl;
         GenApi::CFloatPtr gain = device.GetNodeMap()->GetNode("Gain");
 
-        auto max_gain = gain->GetMax();
-        auto min_gain = gain->GetMin();
         auto setpoint = _analog_controller_config.get().gain;
-
-        if (setpoint > max_gain) {
-            LOG_WARN_S << "Gain exceeds maximum value. Setting Exposure to "
-                          "maximum value: "
-                       << max_gain << endl;
-            setpoint = max_gain;
-        }
-        else if (setpoint < min_gain) {
-            LOG_WARN_S << "Gain exceeds minimum value. Setting Exposure to "
-                          "minimum value: "
-                       << min_gain << endl;
-            setpoint = min_gain;
-        }
         gain->SetValue(static_cast<double>(setpoint));
 
         auto current = gain->GetValue();
@@ -829,7 +867,7 @@ void Task::analogConfiguration(Arena::IDevice& device)
     }
 }
 
-void Task::factoryReset(Arena::IDevice* device, Arena::ISystem& system)
+void Task::factoryReset(Arena::IDevice* device, System& system)
 {
     ArenaDevice guard(device, system);
 
@@ -861,13 +899,13 @@ void Task::infoConfiguration(Arena::IDevice& device)
                << getEnumName(_camera_config.get().temperature_selector,
                       device_temperature_selector_name)
                << endl;
-    Arena::SetNodeValue<gcstring>(m_device->GetNodeMap(),
+    Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "DeviceTemperatureSelector",
         getEnumName(_camera_config.get().temperature_selector,
             device_temperature_selector_name));
 
     GenApi::CEnumerationPtr temperature_selector =
-        m_device->GetNodeMap()->GetNode("DeviceTemperatureSelector");
+        device.GetNodeMap()->GetNode("DeviceTemperatureSelector");
 
     auto current = temperature_selector->GetCurrentEntry()->GetSymbolic();
     if (current != getEnumName(_camera_config.get().temperature_selector,
@@ -897,6 +935,8 @@ void Task::collectInfo()
                        << endl;
             info_message.temperature = info_message.temperature.fromCelsius(
                 Arena::GetNodeValue<double>(m_device->GetNodeMap(), "DeviceTemperature"));
+            info_message.acquisition_timeouts = m_acquisition_timeouts_sum;
+            info_message.incomplete_images = m_incomplete_images_sum;
         }
         catch (GenICam::GenericException& ge) {
             LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;

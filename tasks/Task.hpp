@@ -4,6 +4,7 @@
 #define CAMERA_LUCID_TASK_TASK_HPP
 
 #include "Arena/ArenaApi.h"
+#include "System.hpp"
 #include "camera_lucid/TaskBase.hpp"
 #include <string>
 
@@ -35,13 +36,17 @@ argument.
 
     private:
         std::string m_ip = "";
-        Arena::ISystem* m_system = nullptr;
         Arena::IDevice* m_device = nullptr;
         RTT::extras::ReadOnlyPointer<base::samples::frame::Frame> m_frame;
         // The switchover key to be used
         int64_t m_switchover_key = 0x1000;
 
         base::Time m_last_message;
+        base::Time m_check_status_deadline;
+        int m_incomplete_images_count = 0;
+        int m_acquisition_timeouts_count = 0;
+        uint64_t m_incomplete_images_sum = 0;
+        uint64_t m_acquisition_timeouts_sum = 0;
 
     public:
         /** TaskContext constructor for Task
@@ -113,10 +118,11 @@ argument.
          */
         void cleanupHook();
 
-        Arena::IDevice* connectToCamera(Arena::ISystem& system);
+        Arena::IDevice* connectToCamera(System& system);
         void switchOverAccess(Arena::IDevice& device);
-        void configureCamera(Arena::IDevice& device, Arena::ISystem& system);
-        void factoryReset(Arena::IDevice* device, Arena::ISystem& system);
+        void configureCamera(Arena::IDevice& device, System& system);
+        void ptpConfiguration(Arena::IDevice& device);
+        void factoryReset(Arena::IDevice* device, System& system);
         void acquisitionConfiguration(Arena::IDevice& device);
         void binningConfiguration(Arena::IDevice& device);
         void decimationConfiguration(Arena::IDevice& device);
@@ -124,6 +130,7 @@ argument.
         void exposureConfiguration(Arena::IDevice& device);
         void infoConfiguration(Arena::IDevice& device);
         void analogConfiguration(Arena::IDevice& device);
+        void transmissionConfiguration(Arena::IDevice& device);
 
         void collectInfo();
         void acquireFrame();
