@@ -148,8 +148,10 @@ bool Task::startHook()
         throw std::runtime_error(ge.what());
     }
 
-    m_acquisition_timeout_count = 0;
+    m_acquisition_timeouts_count = 0;
     m_incomplete_images_count = 0;
+    m_acquisition_timeouts_sum = 0;
+    m_incomplete_images_sum = 0;
     m_check_status_deadline = base::Time::now();
     return true;
 }
@@ -159,7 +161,7 @@ void Task::updateHook()
 
     acquireFrame();
 
-    if (m_acquisition_timeout_count > _image_config.get().max_acquisition_timeout) {
+    if (m_acquisition_timeouts_count > _image_config.get().max_acquisition_timeout) {
         throw runtime_error("Exceded maximum number of timeouts!!");
     }
     if (m_incomplete_images_count > _image_config.get().max_incomplete_images) {
@@ -168,7 +170,7 @@ void Task::updateHook()
 
     if (base::Time::now() > m_check_status_deadline) {
         m_incomplete_images_count = 0;
-        m_acquisition_timeout_count = 0;
+        m_acquisition_timeouts_count = 0;
         m_check_status_deadline =
             base::Time::now() + _image_config.get().check_image_status;
     }
@@ -338,7 +340,8 @@ void Task::acquireFrame()
             Arena::ExecuteNode(m_device->GetNodeMap(), "TransferStop");
         }
         LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
-        m_acquisition_timeout_count++;
+        m_acquisition_timeouts_count++;
+        m_acquisition_timeouts_sum++;
         return;
     }
     catch (GenICam::GenericException& ge) {
@@ -349,6 +352,7 @@ void Task::acquireFrame()
     if (frame.image->IsIncomplete()) {
         LOG_ERROR_S << "Image is not complete!! " << endl;
         m_incomplete_images_count++;
+        m_incomplete_images_sum++;
         return;
     }
 
@@ -962,6 +966,8 @@ void Task::collectInfo()
                        << endl;
             info_message.temperature = info_message.temperature.fromCelsius(
                 Arena::GetNodeValue<double>(m_device->GetNodeMap(), "DeviceTemperature"));
+            info_message.acquisition_timeouts = m_acquisition_timeouts_sum;
+            info_message.incomplete_images = m_incomplete_images_sum;
         }
         catch (GenICam::GenericException& ge) {
             LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;

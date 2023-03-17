@@ -205,6 +205,10 @@ namespace camera_lucid {
     struct CameraInfo {
         /** Camera's temperature from Sensor mode*/
         base::Temperature temperature;
+        /** Number of frame acquisition timeouts since start*/
+        uint64_t acquisition_timeouts = 0;
+        /** Number of incomplete images since start*/
+        uint64_t incomplete_images = 0;
     };
 }
 

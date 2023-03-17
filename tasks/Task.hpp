@@ -44,7 +44,9 @@ argument.
         base::Time m_last_message;
         base::Time m_check_status_deadline;
         int m_incomplete_images_count = 0;
-        int m_acquisition_timeout_count = 0;
+        int m_acquisition_timeouts_count = 0;
+        uint64_t m_incomplete_images_sum = 0;
+        uint64_t m_acquisition_timeouts_sum = 0;
 
     public:
         /** TaskContext constructor for Task
@@ -122,8 +124,6 @@ argument.
         void ptpConfiguration(Arena::IDevice& device);
         void factoryReset(Arena::IDevice* device, System& system);
         void acquisitionConfiguration(Arena::IDevice& device);
-        void ptpSyncConfiguration(Arena::IDevice& device, System& system);
-        void waitDevicePTPNegotiation(Arena::IDevice& current_device, System& system);
         void binningConfiguration(Arena::IDevice& device);
         void decimationConfiguration(Arena::IDevice& device);
         void dimensionsConfiguration(Arena::IDevice& device);
