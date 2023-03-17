@@ -147,6 +147,10 @@ bool Task::startHook()
         LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
         throw std::runtime_error(ge.what());
     }
+
+    m_acquisition_timeout_count = 0;
+    m_incomplete_images_count = 0;
+    m_check_status_deadline = base::Time::now() + _image_config.get().check_image_status;
     return true;
 }
 void Task::updateHook()
