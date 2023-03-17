@@ -150,13 +150,28 @@ bool Task::startHook()
 
     m_acquisition_timeout_count = 0;
     m_incomplete_images_count = 0;
-    m_check_status_deadline = base::Time::now() + _image_config.get().check_image_status;
+    m_check_status_deadline = base::Time::now();
     return true;
 }
 void Task::updateHook()
 {
     TaskBase::updateHook();
+
     acquireFrame();
+
+    if (base::Time::now() > m_check_status_deadline) {
+        if (m_acquisition_timeout_count > _image_config.get().max_acquisition_timeout) {
+            throw runtime_error("Exceded maximum number of timeouts!!");
+        }
+        if (m_incomplete_images_count > _image_config.get().max_incomplete_images) {
+            throw runtime_error("Exceded maximum number of incomplete images!!");
+        }
+        m_incomplete_images_count = 0;
+        m_acquisition_timeout_count = 0;
+        m_check_status_deadline =
+            base::Time::now() + _image_config.get().check_image_status;
+    }
+
     collectInfo();
 }
 void Task::errorHook()
@@ -334,19 +349,6 @@ void Task::acquireFrame()
         LOG_ERROR_S << "Image is not complete!! " << endl;
         m_incomplete_images_count++;
         return;
-    }
-
-    if (base::Time::now() > m_check_status_deadline) {
-        if (m_acquisition_timeout_count > _image_config.get().max_acquisition_timeout) {
-            throw runtime_error("Exceded maximum number of timeouts!!");
-        }
-        if (m_incomplete_images_count > _image_config.get().max_incomplete_images) {
-            throw runtime_error("Exceded maximum number of incomplete images!!");
-        }
-        m_incomplete_images_count = 0;
-        m_acquisition_timeout_count = 0;
-        m_check_status_deadline =
-            base::Time::now() + _image_config.get().check_image_status;
     }
 
     size_t size = frame.image->GetSizeFilled();
