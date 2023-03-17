@@ -159,13 +159,14 @@ void Task::updateHook()
 
     acquireFrame();
 
+    if (m_acquisition_timeout_count > _image_config.get().max_acquisition_timeout) {
+        throw runtime_error("Exceded maximum number of timeouts!!");
+    }
+    if (m_incomplete_images_count > _image_config.get().max_incomplete_images) {
+        throw runtime_error("Exceded maximum number of incomplete images!!");
+    }
+
     if (base::Time::now() > m_check_status_deadline) {
-        if (m_acquisition_timeout_count > _image_config.get().max_acquisition_timeout) {
-            throw runtime_error("Exceded maximum number of timeouts!!");
-        }
-        if (m_incomplete_images_count > _image_config.get().max_incomplete_images) {
-            throw runtime_error("Exceded maximum number of incomplete images!!");
-        }
         m_incomplete_images_count = 0;
         m_acquisition_timeout_count = 0;
         m_check_status_deadline =
