@@ -311,6 +311,7 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
     exposureConfiguration(device);
     analogConfiguration(device);
     infoConfiguration(device);
+    autoExposureConfiguration(device);
 
     Frame* frame = new Frame(_image_config.get().width,
         _image_config.get().height,
@@ -945,4 +946,25 @@ void Task::collectInfo()
         _info.write(info_message);
         m_last_message = current_time;
     }
+}
+
+void Task::autoExposureConfiguration(Arena::IDevice& device)
+{
+    auto ptp_config = _ptp_config.get();
+
+    if (ptp_config.enabled) {
+        return;
+    }
+
+    Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
+		"ExposureAuto",
+		"Continuous");
+
+    Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
+		"TargetBrightness",
+		"128");
+
+    Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
+		"Gamma",
+		"0.5");
 }
