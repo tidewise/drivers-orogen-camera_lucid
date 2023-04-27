@@ -761,8 +761,7 @@ void Task::exposureConfiguration(Arena::IDevice& device)
         GenApi::CFloatPtr exposure_time = device.GetNodeMap()->GetNode("ExposureTime");
 
         auto setpoint = _image_config.get().exposure_time.toMicroseconds();
-        exposure_time->SetValue(
-            static_cast<double>(setpoint));
+        exposure_time->SetValue(static_cast<double>(setpoint));
 
         auto current = exposure_time->GetValue();
         if (abs(current - setpoint) >= 10) {
@@ -867,27 +866,25 @@ void Task::analogConfiguration(Arena::IDevice& device)
             throw runtime_error("Gain value differs.");
         }
 
-    /** First Auto Gain Min/Max implementation: */
-    if (_analog_controller_config.get().gain_auto == GainAuto::GAIN_AUTO_CONTINUOUS) {
-        GenApi::CFloatPtr gain = device.GetNodeMap()->GetNode("Gain");
-        auto current = gain->GetValue();
+        /** First Auto Gain Min/Max implementation: */
+        if (_analog_controller_config.get().gain_auto == GainAuto::GAIN_AUTO_CONTINUOUS) {
+            GenApi::CFloatPtr gain = device.GetNodeMap()->GetNode("Gain");
+            auto current = gain->GetValue();
 
-        auto min = _analog_controller_config.get().gain_min;
-        auto max = _analog_controller_config.get().gain_max;
+            auto min = _analog_controller_config.get().gain_min;
+            auto max = _analog_controller_config.get().gain_max;
 
-        LOG_INFO_S << "The minimal gain value is: " << min
-                   << " and maximal gain value is: " << max
-                   << endl;
-        if (abs(current) > abs(max)) {
-            LOG_INFO_S << "Current Gain value exceeds the maximum value. Current: " << current
-                       << " setting Gain Value to: " << max << endl;
-            gain->SetValue(static_cast<double>(max));
+            LOG_INFO_S << "The minimal gain value is: " << min
+                       << " and maximal gain value is: " << max << endl;
+            if (abs(current) > abs(max)) {
+                LOG_INFO_S << "Current Gain value exceeds the maximum value. Current: "
+                           << current << " setting Gain Value to: " << max << endl;
+                gain->SetValue(static_cast<double>(max));
             }
-
-        if (abs(current) < abs(min)) {
-            LOG_INFO_S << "Current Gain value subceeds the minimum value. Current: " << current
-                       << " setting Gain Value to: " << min << endl;
-            gain->SetValue(static_cast<double>(max));
+            if (abs(current) < abs(min)) {
+                LOG_INFO_S << "Current Gain value subceeds the minimum value. Current: "
+                           << current << " setting Gain Value to: " << min << endl;
+                gain->SetValue(static_cast<double>(max));
             }
         }
     }
@@ -994,47 +991,42 @@ void Task::autoExposureConfiguration(Arena::IDevice& device)
     }
 
     LOG_INFO_S << "Ensuring that exposure time is within range" << endl;
-    
+
     GenApi::CFloatPtr exposureTime = device.GetNodeMap()->GetNode("ExposureTime");
 
     if (exposureTime->GetMin() < image_config.min_exposure_time.toMicroseconds()) {
-        LOG_INFO_S << "Exposure time below lower limit. Setting it back to minimum value ("
+        LOG_INFO_S
+            << "Exposure time below lower limit. Setting it back to minimum value ("
             << image_config.min_exposure_time << ")." << endl;
 
         exposureTime->SetValue(image_config.min_exposure_time.toMicroseconds());
     }
 
     if (exposureTime->GetMax() > image_config.max_exposure_time.toMicroseconds()) {
-        LOG_INFO_S << "Exposure time above upper limit. Setting it back to maximum value ("
+        LOG_INFO_S
+            << "Exposure time above upper limit. Setting it back to maximum value ("
             << image_config.max_exposure_time << ")." << endl;
 
         exposureTime->SetValue(image_config.max_exposure_time.toMicroseconds());
     }
 
-    LOG_INFO_S << "Setting device target brightness to "
-        << image_config.target_brightness << endl;
+    LOG_INFO_S << "Setting device target brightness to " << image_config.target_brightness
+               << endl;
 
     Arena::SetNodeValue<int>(device.GetNodeMap(),
-		"TargetBrightness",
-		image_config.target_brightness);
+        "TargetBrightness",
+        image_config.target_brightness);
 }
 
 void Task::gammaConfiguration(Arena::IDevice& device)
 {
     auto config = _analog_controller_config.get();
+    GenApi::CFloatPtr value = device.GetNodeMap()->GetNode("Gamma");
 
-    GenApi::CFloatPtr value =
-        device.GetNodeMap()->GetNode("Gamma");
-    
     LOG_INFO_S << "Setting Gamma Mode" << endl;
-
-    Arena::SetNodeValue<bool>(device.GetNodeMap(),
-        "GammaEnable",
-        config.gamma_enabled);
+    Arena::SetNodeValue<bool>(device.GetNodeMap(), "GammaEnable", config.gamma_enabled);
 
     LOG_INFO_S << "Setting Gamma Values" << endl;
-
     GenApi::CFloatPtr value = device.GetNodeMap()->GetNode("Gamma");
     value->SetValue(config.gamma_value);
-
 }

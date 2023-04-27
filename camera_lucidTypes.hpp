@@ -113,18 +113,20 @@ namespace camera_lucid {
     struct AnalogControllerConfig {
         /** Value used for gain*/
         float gain = 0.0;
-        /** Sets the automatic Gain mode*/
-        GainAuto gain_auto = GainAuto::GAIN_AUTO_OFF;
-        /** Selects all shutters or shutter1 or shutter2*/
-        GainSelector gain_selector = GainSelector::GAIN_SELECTOR_ALL;
-        /** Gamma correction mode */
-        bool gamma_enabled = true;
-        /** Gamma correction configuration */
-        float gamma_value = 0.5;
         /** Minimal Gain Value*/
         float gain_min = 0.0;
         /** Maximum Gain Value*/
         float gain_max = 48.0;
+        /** Sets the automatic Gain mode*/
+        GainAuto gain_auto = GainAuto::GAIN_AUTO_OFF;
+        /** Selects all shutters or shutter1 or shutter2*/
+        GainSelector gain_selector = GainSelector::GAIN_SELECTOR_ALL;
+        /** Gamma correction mode - For uncontrolled outdoor environments,
+         *  The recommended configuration is enabled (true). */
+        bool gamma_enabled = true;
+        /** Gamma correction configuration - For uncontrolled outdoor environments,
+         * The recommended gamma value is 0.5. */
+        float gamma_value = 0.5;
     };
 
     struct PTPConfig {
@@ -198,7 +200,8 @@ namespace camera_lucid {
         int offset_x = 0;
         /** Vertical offset from the origin to the region of interest in pixels.*/
         int offset_y = 0;
-        /** Default pixel value the camera will try to reach automatically.*/
+        /** Default pixel value the camera will try to reach automatically.
+         * For uncontrolled outdoor environments, the recommended value is 70. */
         int target_brightness = 128;
     };
 
