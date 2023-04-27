@@ -117,6 +117,10 @@ namespace camera_lucid {
         GainAuto gain_auto = GainAuto::GAIN_AUTO_OFF;
         /** Selects all shutters or shutter1 or shutter2*/
         GainSelector gain_selector = GainSelector::GAIN_SELECTOR_ALL;
+        /** Gamma correction mode */
+        bool gamma_enabled = true;
+        /** Gamma correction configuration */
+        float gamma_value = 0.5;
     };
 
     struct PTPConfig {

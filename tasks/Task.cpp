@@ -995,3 +995,28 @@ void Task::autoExposureConfiguration(Arena::IDevice& device)
 		"TargetBrightness",
 		"128");
 }
+
+void Task::gammaConfiguration(Arena::IDevice& device)
+{
+    auto config = _analog_controller_config.get();
+
+    GenApi::CFloatPtr value =
+        device.GetNodeMap()->GetNode("Gamma");
+    
+    LOG_INFO_S << "Setting Gamma Mode" << endl;
+
+    Arena::SetNodeValue<bool>(device.GetNodeMap(),
+        "GammaEnable",
+        config.gamma_enabled);
+
+    LOG_INFO_S << "Setting Gamma Values" << endl;
+
+    GenApi::CFloatPtr value = device.GetNodeMap()->GetNode("Gamma");
+    value->SetValue(config.gamma_value);
+
+}
+
+void Task::autoGainConfiguration(Arena::IDevice& device)
+{
+
+}
