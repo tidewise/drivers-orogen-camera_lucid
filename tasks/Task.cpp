@@ -963,37 +963,35 @@ void Task::autoExposureConfiguration(Arena::IDevice& device)
     LOG_INFO_S << "Setting auto-exposure to continuous" << endl;
 
     if (image_config.exposure_auto != EXPOSURE_AUTO_CONTINUOUS) {
-        Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
+        Arena::SetNodeValue<ExposureAuto>(device.GetNodeMap(),
             "ExposureAuto",
-            "Continuous");
+            image_config.exposure_auto);
     }
 
     LOG_INFO_S << "Ensuring that exposure time is within range" << endl;
-
-    auto min = 46.912;
-    auto max = 82446.1;
     
-    GenApi::CFloatPtr pExposureTime = device.GetNodeMap()->GetNode("ExposureTime");
-    double exposureTime;
+    GenApi::CFloatPtr exposureTime = device.GetNodeMap()->GetNode("ExposureTime");
 
-    if (pExposureTime->GetMin() < min) {
-        LOG_INFO_S << "Exposure time below lower limit. Setting it back to minimum value." << endl;
+    if (exposureTime->GetMin() < image_config.min_exposure_time.toMicroseconds()) {
+        LOG_INFO_S << "Exposure time below lower limit. Setting it back to minimum value ("
+            << image_config.min_exposure_time << ")." << endl;
 
-        exposureTime = min;
-    }
-    if (pExposureTime->GetMax() > max) {
-        LOG_INFO_S << "Exposure time above upper limit. Setting it back to maximum value." << endl;
-
-        exposureTime = max;
+        exposureTime->SetValue(image_config.min_exposure_time.toMicroseconds());
     }
 
-    pExposureTime->SetValue(exposureTime);
+    if (exposureTime->GetMax() > image_config.max_exposure_time.toMicroseconds()) {
+        LOG_INFO_S << "Exposure time above upper limit. Setting it back to maximum value ("
+            << image_config.max_exposure_time << ")." << endl;
 
-    LOG_INFO_S << "Setting device target brightness to 128" << endl;
+        exposureTime->SetValue(image_config.max_exposure_time.toMicroseconds());
+    }
 
-    Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
+    LOG_INFO_S << "Setting device target brightness to "
+        << image_config.target_brightness << endl;
+
+    Arena::SetNodeValue<int>(device.GetNodeMap(),
 		"TargetBrightness",
-		"128");
+		image_config.target_brightness);
 }
 
 void Task::gammaConfiguration(Arena::IDevice& device)
