@@ -186,6 +186,10 @@ namespace camera_lucid {
         ExposureAuto exposure_auto = EXPOSURE_AUTO_CONTINUOUS;
         /** Controls the device exposure time.*/
         base::Time exposure_time = base::Time::fromMicroseconds(1000);
+        /** Minimum exposure time.*/
+        base::Time min_exposure_time = base::Time::fromMicroseconds(46.912);
+        /** Maximum exposure time.*/
+        base::Time max_exposure_time = base::Time::fromMicroseconds(82446.1);
         /** Width of the image provided by the device in pixels.*/
         int width = 2448;
         /** Height of the image provided by the device in pixels.*/
@@ -194,6 +198,8 @@ namespace camera_lucid {
         int offset_x = 0;
         /** Vertical offset from the origin to the region of interest in pixels.*/
         int offset_y = 0;
+        /** Default pixel value the camera will try to reach automatically.*/
+        int target_brightness = 128;
     };
 
     struct CameraConfig {
