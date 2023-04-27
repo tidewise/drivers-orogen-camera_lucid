@@ -121,6 +121,10 @@ namespace camera_lucid {
         bool gamma_enabled = true;
         /** Gamma correction configuration */
         float gamma_value = 0.5;
+        /** Minimal Gain Value*/
+        float gain_min = 0.0;
+        /** Maximum Gain Value*/
+        float gain_max = 48.0;
     };
 
     struct PTPConfig {

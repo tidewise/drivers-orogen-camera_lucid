@@ -312,6 +312,7 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
     analogConfiguration(device);
     infoConfiguration(device);
     autoExposureConfiguration(device);
+    gammaConfiguration(device);
 
     Frame* frame = new Frame(_image_config.get().width,
         _image_config.get().height,
@@ -865,6 +866,30 @@ void Task::analogConfiguration(Arena::IDevice& device)
                        << " current: " << current << endl;
             throw runtime_error("Gain value differs.");
         }
+
+    /** First Auto Gain Min/Max implementation: */
+    if (_analog_controller_config.get().gain_auto == GainAuto::GAIN_AUTO_CONTINUOUS) {
+        GenApi::CFloatPtr gain = device.GetNodeMap()->GetNode("Gain");
+        auto current = gain->GetValue();
+
+        auto min = _analog_controller_config.get().gain_min;
+        auto max = _analog_controller_config.get().gain_max;
+
+        LOG_INFO_S << "The minimal gain value is: " << min
+                   << " and maximal gain value is: " << max
+                   << endl;
+        if (abs(current) > abs(max)) {
+            LOG_INFO_S << "Current Gain value exceeds the maximum value. Current: " << current
+                       << " setting Gain Value to: " << max << endl;
+            gain->SetValue(static_cast<double>(max));
+            }
+
+        if (abs(current) < abs(min)) {
+            LOG_INFO_S << "Current Gain value subceeds the minimum value. Current: " << current
+                       << " setting Gain Value to: " << min << endl;
+            gain->SetValue(static_cast<double>(max));
+            }
+        }
     }
 }
 
@@ -1013,10 +1038,5 @@ void Task::gammaConfiguration(Arena::IDevice& device)
 
     GenApi::CFloatPtr value = device.GetNodeMap()->GetNode("Gamma");
     value->SetValue(config.gamma_value);
-
-}
-
-void Task::autoGainConfiguration(Arena::IDevice& device)
-{
 
 }
