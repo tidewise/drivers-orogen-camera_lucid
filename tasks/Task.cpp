@@ -953,18 +953,45 @@ void Task::autoExposureConfiguration(Arena::IDevice& device)
     auto ptp_config = _ptp_config.get();
 
     if (ptp_config.enabled) {
+        LOG_ERROR_S << "PTPSync must be disabled in auto-exposure mode" << endl;
+
         return;
     }
 
-    Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
-		"ExposureAuto",
-		"Continuous");
+    auto image_config = _image_config.get();
+
+    LOG_INFO_S << "Setting auto-exposure to continuous" << endl;
+
+    if (image_config.exposure_auto != EXPOSURE_AUTO_CONTINUOUS) {
+        Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
+            "ExposureAuto",
+            "Continuous");
+    }
+
+    LOG_INFO_S << "Ensuring that exposure time is within range" << endl;
+
+    auto min = 46.912;
+    auto max = 82446.1;
+    
+    GenApi::CFloatPtr pExposureTime = device.GetNodeMap()->GetNode("ExposureTime");
+    double exposureTime;
+
+    if (pExposureTime->GetMin() < min) {
+        LOG_INFO_S << "Exposure time below lower limit. Setting it back to minimum value." << endl;
+
+        exposureTime = min;
+    }
+    if (pExposureTime->GetMax() > max) {
+        LOG_INFO_S << "Exposure time above upper limit. Setting it back to maximum value." << endl;
+
+        exposureTime = max;
+    }
+
+    pExposureTime->SetValue(exposureTime);
+
+    LOG_INFO_S << "Setting device target brightness to 128" << endl;
 
     Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
 		"TargetBrightness",
 		"128");
-
-    Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
-		"Gamma",
-		"0.5");
 }
