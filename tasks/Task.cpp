@@ -526,9 +526,6 @@ void Task::binningConfiguration(Arena::IDevice& device)
     GenApi::CEnumEntryPtr binning_sensor_entry =
         binning_selector_node->GetEntryByName("Digital");
     if (binning_sensor_entry == 0 || !GenApi::IsAvailable(binning_sensor_entry)) {
-        LOG_WARN_S << "Sensor binning not supported by device: not available from "
-                      "BinningSelector"
-                   << endl;
         throw runtime_error("Sensor binning not supported by device: not available "
                             "from BinningSelector");
     }
@@ -865,28 +862,18 @@ void Task::analogConfiguration(Arena::IDevice& device)
                        << " current: " << current << endl;
             throw runtime_error("Gain value differs.");
         }
+    }
 
-        /** First Auto Gain Min/Max implementation: */
-        if (_analog_controller_config.get().gain_auto == GainAuto::GAIN_AUTO_CONTINUOUS) {
-            GenApi::CFloatPtr gain = device.GetNodeMap()->GetNode("Gain");
-            auto current = gain->GetValue();
+    if (_analog_controller_config.get().gain_auto == GainAuto::GAIN_AUTO_CONTINUOUS || 
+        _analog_controller_config.get().gain_auto == GainAuto::GAIN_AUTO_ONCE  ) {
+        GenApi::CFloatPtr gain_low = device.GetNodeMap()->GetNode("GainAutoLowerLimit");
+        GenApi::CFloatPtr gain_upp = device.GetNodeMap()->GetNode("GainAutoUpperLimit");
 
-            auto min = _analog_controller_config.get().gain_min;
-            auto max = _analog_controller_config.get().gain_max;
-
-            LOG_INFO_S << "The minimal gain value is: " << min
-                       << " and maximal gain value is: " << max << endl;
-            if (abs(current) > abs(max)) {
-                LOG_INFO_S << "Current Gain value exceeds the maximum value. Current: "
-                           << current << " setting Gain Value to: " << max << endl;
-                gain->SetValue(static_cast<double>(max));
-            }
-            if (abs(current) < abs(min)) {
-                LOG_INFO_S << "Current Gain value subceeds the minimum value. Current: "
-                           << current << " setting Gain Value to: " << min << endl;
-                gain->SetValue(static_cast<double>(max));
-            }
-        }
+        LOG_INFO_S << "Setting gain lower limit to: " << _analog_controller_config.get().gain_min;
+        gain_low->SetValue(static_cast<double>(_analog_controller_config.get().gain_min));
+        
+        LOG_INFO_S << "Setting gain lower limit to: " << _analog_controller_config.get().gain_min;
+        gain_upp->SetValue(static_cast<double>(_analog_controller_config.get().gain_max));
     }
 }
 
