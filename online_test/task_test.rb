@@ -106,16 +106,23 @@ describe OroGen.camera_lucid.Task do
         task.properties.image_config.depth = 8
         task.properties.image_config.exposure_auto = "EXPOSURE_AUTO_OFF"
         task.properties.image_config.exposure_time = Time.at(0.001)
+        task.properties.image_config.min_exposure_time = Time.at(46.912)
+        task.properties.image_config.max_exposure_time = Time.at(82_446.1)
         task.properties.image_config.width = 2448
         task.properties.image_config.height = 2048
         task.properties.image_config.offset_x = 0
         task.properties.image_config.offset_y = 0
+        task.properties.image_config.target_brightness = 128
 
         task.properties.analog_controller_config = Types.camera_lucid
                                                         .AnalogControllerConfig.new
         task.properties.analog_controller_config.gain_auto = "GAIN_AUTO_OFF"
         task.properties.analog_controller_config.gain_selector = "GAIN_SELECTOR_ALL"
         task.properties.analog_controller_config.gain = 0
+        task.properties.analog_controller_config.gain_min = 0
+        task.properties.analog_controller_config.gain_max = 48.0
+        task.properties.analog_controller_config.gamma_enable = true
+        task.properties.analog_controller_config.gamma = 0.5
 
         task.properties.binning_config = Types.camera_lucid.BinningConfig.new
         task.properties.binning_config.selector = "BINNING_SELECTOR_DIGITAL"
