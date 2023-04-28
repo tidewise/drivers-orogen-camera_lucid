@@ -202,7 +202,7 @@ namespace camera_lucid {
         int offset_y = 0;
         /** Default pixel value the camera will try to reach automatically.
          * For uncontrolled outdoor environments, the recommended value is 70. */
-        int target_brightness = 128;
+        uint8_t target_brightness = 128;
     };
 
     struct CameraConfig {

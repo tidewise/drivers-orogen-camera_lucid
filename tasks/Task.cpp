@@ -985,9 +985,9 @@ void Task::autoExposureConfiguration(Arena::IDevice& device)
     LOG_INFO_S << "Setting auto-exposure to continuous" << endl;
 
     if (image_config.exposure_auto != EXPOSURE_AUTO_CONTINUOUS) {
-        Arena::SetNodeValue<ExposureAuto>(device.GetNodeMap(),
+        Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
             "ExposureAuto",
-            image_config.exposure_auto);
+            to_string(image_config.exposure_auto).c_str());
     }
 
     LOG_INFO_S << "Ensuring that exposure time is within range" << endl;
@@ -1013,9 +1013,9 @@ void Task::autoExposureConfiguration(Arena::IDevice& device)
     LOG_INFO_S << "Setting device target brightness to " << image_config.target_brightness
                << endl;
 
-    Arena::SetNodeValue<int>(device.GetNodeMap(),
+    Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
         "TargetBrightness",
-        image_config.target_brightness);
+        to_string(image_config.target_brightness).c_str());
 }
 
 void Task::gammaConfiguration(Arena::IDevice& device)
