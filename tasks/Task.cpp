@@ -1027,6 +1027,5 @@ void Task::gammaConfiguration(Arena::IDevice& device)
     Arena::SetNodeValue<bool>(device.GetNodeMap(), "GammaEnable", config.gamma_enabled);
 
     LOG_INFO_S << "Setting Gamma Values" << endl;
-    GenApi::CFloatPtr value = device.GetNodeMap()->GetNode("Gamma");
     value->SetValue(config.gamma_value);
 }
