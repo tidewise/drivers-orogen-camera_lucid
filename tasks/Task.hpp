@@ -132,7 +132,6 @@ argument.
         void analogConfiguration(Arena::IDevice& device);
         void transmissionConfiguration(Arena::IDevice& device);
         void autoExposureConfiguration(Arena::IDevice& device);
-        void gammaConfiguration(Arena::IDevice& device);
 
         void collectInfo();
         void acquireFrame();

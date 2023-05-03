@@ -86,18 +86,19 @@ describe OroGen.camera_lucid.Task do
         )
 
         task.properties.camera_config = Types.camera_lucid.CameraConfig.new
-        task.properties.camera_config.ip = "10.1.1.24"
+        task.properties.camera_config.ip = "10.160.16.10"
         task.properties.camera_config.factory_reset = false
         task.properties.camera_config.camera_reset_timeout = Time.at(50)
         task.properties.camera_config
             .temperature_selector = "DEVICE_TEMPERATURE_SELECTOR_SENSOR"
         task.properties.camera_config.update_info = Time.at(1)
-        task.properties.camera_config.ptp_sync.enable_ptp = true
-        task.properties.camera_config.ptp_sync.sync_timeout = Time.at(50)
-        task.properties.camera_config.ptp_sync.link_speed = 125_000_000
-        task.properties.camera_config.ptp_sync.packet_size = 9_000
-        task.properties.camera_config.ptp_sync.number_of_cameras = 4
-        task.properties.camera_config.ptp_sync.buffer_percentage = 0.1093
+
+        task.properties.ptp_config.enable_ptp = true
+        task.properties.ptp_config.slave_only = false
+
+        task.properties.transmission_config.explicit_data_transfer = false
+        task.properties.transmission_config.packet_delay = 0
+        task.properties.transmission_config.frame_transmission_delay = 0
 
         task.properties.image_config = Types.camera_lucid.ImageConfig.new
         task.properties.image_config.frame_timeout = Time.at(0.2)
@@ -121,7 +122,7 @@ describe OroGen.camera_lucid.Task do
         task.properties.analog_controller_config.gain = 0
         task.properties.analog_controller_config.gain_min = 0
         task.properties.analog_controller_config.gain_max = 48.0
-        task.properties.analog_controller_config.gamma_enable = true
+        task.properties.analog_controller_config.gamma_enabled = true
         task.properties.analog_controller_config.gamma = 0.5
 
         task.properties.binning_config = Types.camera_lucid.BinningConfig.new

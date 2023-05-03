@@ -126,7 +126,7 @@ namespace camera_lucid {
         bool gamma_enabled = true;
         /** Gamma correction configuration - For uncontrolled outdoor environments,
          * The recommended gamma value is 0.5. */
-        float gamma_value = 0.5;
+        float gamma = 0.5;
     };
 
     struct PTPConfig {
@@ -202,7 +202,7 @@ namespace camera_lucid {
         int offset_y = 0;
         /** Default pixel value the camera will try to reach automatically.
          * For uncontrolled outdoor environments, the recommended value is 70. */
-        uint8_t target_brightness = 128;
+        uint8_t target_brightness = 70;
     };
 
     struct CameraConfig {

@@ -311,7 +311,6 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
     analogConfiguration(device);
     infoConfiguration(device);
     autoExposureConfiguration(device);
-    gammaConfiguration(device);
 
     Frame* frame = new Frame(_image_config.get().width,
         _image_config.get().height,
@@ -530,8 +529,7 @@ void Task::binningConfiguration(Arena::IDevice& device)
     }
 
     LOG_INFO_S << "Set binning mode to "
-               << getEnumName(_binning_config.get().selector, binning_selector_name)
-              ;
+               << getEnumName(_binning_config.get().selector, binning_selector_name);
     Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "BinningSelector",
         getEnumName(_binning_config.get().selector, binning_selector_name));
@@ -611,8 +609,8 @@ void Task::decimationConfiguration(Arena::IDevice& device)
     }
 
     LOG_INFO_S << "Set decimation mode to: "
-               << getEnumName(_decimation_config.get().selector, decimation_selector_name)
-              ;
+               << getEnumName(_decimation_config.get().selector,
+                      decimation_selector_name);
     Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "DecimationSelector",
         getEnumName(_decimation_config.get().selector, decimation_selector_name));
@@ -720,8 +718,7 @@ void Task::dimensionsConfiguration(Arena::IDevice& device)
 void Task::exposureConfiguration(Arena::IDevice& device)
 {
     LOG_INFO_S << "Setting auto exposure to "
-               << getEnumName(_image_config.get().exposure_auto, exposure_auto_name)
-              ;
+               << getEnumName(_image_config.get().exposure_auto, exposure_auto_name);
     Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "ExposureAuto",
         getEnumName(_image_config.get().exposure_auto, exposure_auto_name));
@@ -785,8 +782,7 @@ void Task::acquisitionConfiguration(Arena::IDevice& device)
             "AcquisitionFrameRateEnable",
             true);
         acquisition_frame_rate->SetValue(config.frame_rate);
-        LOG_INFO_S << "Setting Acquisition Frame Rate to " << config.frame_rate << " FPS"
-                  ;
+        LOG_INFO_S << "Setting Acquisition Frame Rate to " << config.frame_rate << " FPS";
     }
 }
 
@@ -796,8 +792,7 @@ void Task::analogConfiguration(Arena::IDevice& device)
 
     LOG_INFO_S << "Setting Gain Selector to ."
                << getEnumName(_analog_controller_config.get().gain_selector,
-                      gain_selector_name)
-              ;
+                      gain_selector_name);
     Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "GainSelector",
         getEnumName(_analog_controller_config.get().gain_selector, gain_selector_name));
@@ -815,8 +810,7 @@ void Task::analogConfiguration(Arena::IDevice& device)
     }
 
     LOG_INFO_S << "Setting Gain Auto mode to ."
-               << getEnumName(_analog_controller_config.get().gain_auto, gain_auto_name)
-              ;
+               << getEnumName(_analog_controller_config.get().gain_auto, gain_auto_name);
     Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "GainAuto",
         getEnumName(_analog_controller_config.get().gain_auto, gain_auto_name));
@@ -848,17 +842,32 @@ void Task::analogConfiguration(Arena::IDevice& device)
         }
     }
 
-    if (_analog_controller_config.get().gain_auto == GainAuto::GAIN_AUTO_CONTINUOUS || 
-        _analog_controller_config.get().gain_auto == GainAuto::GAIN_AUTO_ONCE  ) {
+    if (_analog_controller_config.get().gain_auto == GainAuto::GAIN_AUTO_CONTINUOUS ||
+        _analog_controller_config.get().gain_auto == GainAuto::GAIN_AUTO_ONCE) {
         GenApi::CFloatPtr gain_low = device.GetNodeMap()->GetNode("GainAutoLowerLimit");
         GenApi::CFloatPtr gain_upp = device.GetNodeMap()->GetNode("GainAutoUpperLimit");
 
-        LOG_INFO_S << "Setting gain lower limit to: " << _analog_controller_config.get().gain_min;
+        LOG_INFO_S << "Setting gain lower limit to: "
+                   << _analog_controller_config.get().gain_min;
         gain_low->SetValue(static_cast<double>(_analog_controller_config.get().gain_min));
-        
-        LOG_INFO_S << "Setting gain higher limit to: " << _analog_controller_config.get().gain_max;
+
+        LOG_INFO_S << "Setting gain higher limit to: "
+                   << _analog_controller_config.get().gain_max;
         gain_upp->SetValue(static_cast<double>(_analog_controller_config.get().gain_max));
     }
+
+    // Gamma configuration:
+    // Lower and Upper limits and only writable on continuous mode.
+
+    GenApi::CFloatPtr value = device.GetNodeMap()->GetNode("Gamma");
+
+    LOG_INFO_S << "Setting Gamma Mode";
+    Arena::SetNodeValue<bool>(device.GetNodeMap(),
+        "GammaEnable",
+        _analog_controller_config.get().gamma_enabled);
+
+    LOG_INFO_S << "Setting Gamma Values";
+    value->SetValue(_analog_controller_config.get().gamma);
 }
 
 void Task::factoryReset(Arena::IDevice* device, System& system)
@@ -890,8 +899,7 @@ void Task::infoConfiguration(Arena::IDevice& device)
 {
     LOG_INFO_S << "Setting device temperature selector to "
                << getEnumName(_camera_config.get().temperature_selector,
-                      device_temperature_selector_name)
-              ;
+                      device_temperature_selector_name);
     Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "DeviceTemperatureSelector",
         getEnumName(_camera_config.get().temperature_selector,
@@ -924,8 +932,7 @@ void Task::collectInfo()
             // get DeviceTemperature
             LOG_INFO_S << "Acquiring temperature from "
                        << getEnumName(_camera_config.get().temperature_selector,
-                              device_temperature_selector_name)
-                      ;
+                              device_temperature_selector_name);
             info_message.temperature = info_message.temperature.fromCelsius(
                 Arena::GetNodeValue<double>(m_device->GetNodeMap(), "DeviceTemperature"));
             info_message.acquisition_timeouts = m_acquisition_timeouts_sum;
@@ -972,19 +979,8 @@ void Task::autoExposureConfiguration(Arena::IDevice& device)
     LOG_INFO_S << "Setting device's target brightness to "
                << image_config.target_brightness;
 
-    GenApi::CIntegerPtr targetBrightness = device.GetNodeMap()->GetNode("TargetBrightness");
-    
+    GenApi::CIntegerPtr targetBrightness =
+        device.GetNodeMap()->GetNode("TargetBrightness");
+
     targetBrightness->SetValue(image_config.target_brightness);
-}
-
-void Task::gammaConfiguration(Arena::IDevice& device)
-{
-    auto config = _analog_controller_config.get();
-    GenApi::CFloatPtr value = device.GetNodeMap()->GetNode("Gamma");
-
-    LOG_INFO_S << "Setting Gamma Mode";
-    Arena::SetNodeValue<bool>(device.GetNodeMap(), "GammaEnable", config.gamma_enabled);
-
-    LOG_INFO_S << "Setting Gamma Values";
-    value->SetValue(config.gamma_value);
 }
