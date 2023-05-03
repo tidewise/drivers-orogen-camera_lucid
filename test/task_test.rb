@@ -93,13 +93,6 @@ describe OroGen.camera_lucid.Task do
             .temperature_selector = "DEVICE_TEMPERATURE_SELECTOR_SENSOR"
         task.properties.camera_config.update_info = Time.at(1)
 
-        task.properties.ptp_config.enable_ptp = true
-        task.properties.ptp_config.slave_only = false
-
-        task.properties.transmission_config.explicit_data_transfer = false
-        task.properties.transmission_config.packet_delay = 0
-        task.properties.transmission_config.frame_transmission_delay = 0
-
         task.properties.image_config = Types.camera_lucid.ImageConfig.new
         task.properties.image_config.frame_timeout = Time.at(0.2)
         task.properties.image_config.frame_rate = 21.0
@@ -107,13 +100,13 @@ describe OroGen.camera_lucid.Task do
         task.properties.image_config.depth = 8
         task.properties.image_config.exposure_auto = "EXPOSURE_AUTO_OFF"
         task.properties.image_config.exposure_time = Time.at(0.001)
-        task.properties.image_config.min_exposure_time = Time.at(46.912)
-        task.properties.image_config.max_exposure_time = Time.at(82_446.1)
+        task.properties.image_config.min_exposure_time = Time.at(0.000_046_912)
+        task.properties.image_config.max_exposure_time = Time.at(0.082_446_100)
         task.properties.image_config.width = 2448
         task.properties.image_config.height = 2048
         task.properties.image_config.offset_x = 0
         task.properties.image_config.offset_y = 0
-        task.properties.image_config.target_brightness = 128
+        task.properties.image_config.target_brightness = 70
 
         task.properties.analog_controller_config = Types.camera_lucid
                                                         .AnalogControllerConfig.new

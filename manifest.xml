@@ -10,4 +10,6 @@
   <depend package="base/types" />
   <depend package="base/logging" />
   <depend package="drivers/camera_lucid_arenasdk" />
+
+  <test_depend name="tools/syskit" />
 </package>

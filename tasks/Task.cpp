@@ -310,7 +310,6 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
     exposureConfiguration(device);
     analogConfiguration(device);
     infoConfiguration(device);
-    autoExposureConfiguration(device);
 
     Frame* frame = new Frame(_image_config.get().width,
         _image_config.get().height,
@@ -717,28 +716,48 @@ void Task::dimensionsConfiguration(Arena::IDevice& device)
 
 void Task::exposureConfiguration(Arena::IDevice& device)
 {
+    auto image_config = _image_config.get();
+
     LOG_INFO_S << "Setting auto exposure to "
-               << getEnumName(_image_config.get().exposure_auto, exposure_auto_name);
+               << getEnumName(image_config.exposure_auto, exposure_auto_name);
+
     Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "ExposureAuto",
-        getEnumName(_image_config.get().exposure_auto, exposure_auto_name));
+        getEnumName(image_config.exposure_auto, exposure_auto_name));
+
+    // _analog_controller_config.get().gain_auto == GainAuto::GAIN_AUTO_CONTINUOUS
+
+    if (image_config.exposure_auto_limit_auto == ExposureAutoLimitAuto::EXPOSURE_AUTO_LIMIT_AUTO_OFF) {
+        LOG_INFO_S << "Setting exposure time lower and upper limit";
+
+        GenApi::CFloatPtr lowerLimit =
+            device.GetNodeMap()->GetNode("ExposureAutoLowerLimit");
+        GenApi::CFloatPtr upperLimit =
+            device.GetNodeMap()->GetNode("ExposureAutoUpperLimit");
+
+        lowerLimit->SetValue(image_config.min_exposure_time.toMicroseconds());
+        upperLimit->SetValue(image_config.max_exposure_time.toMicroseconds());
+
+        LOG_DEBUG_S << "Exposure time lower limit: " << image_config.min_exposure_time;
+        LOG_DEBUG_S << "Exposure time upper limit: " << image_config.max_exposure_time;
+    }
 
     GenApi::CEnumerationPtr exposure_auto = device.GetNodeMap()->GetNode("ExposureAuto");
 
     auto current = exposure_auto->GetCurrentEntry()->GetSymbolic();
-    if (current != getEnumName(_image_config.get().exposure_auto, exposure_auto_name)) {
+    if (current != getEnumName(image_config.exposure_auto, exposure_auto_name)) {
         LOG_WARN_S << "ExposureAuto value differs setpoint: "
-                   << getEnumName(_image_config.get().exposure_auto, exposure_auto_name)
+                   << getEnumName(image_config.exposure_auto, exposure_auto_name)
                    << " current: " << current;
         throw runtime_error("ExposureAuto value differs.");
     }
 
-    if (_image_config.get().exposure_auto == ExposureAuto::EXPOSURE_AUTO_OFF) {
+    if (image_config.exposure_auto == ExposureAuto::EXPOSURE_AUTO_OFF) {
         LOG_INFO_S << "Setting exposure time to: "
-                   << _image_config.get().exposure_time.toMicroseconds() << "us";
+                   << image_config.exposure_time.toMicroseconds() << "us";
         GenApi::CFloatPtr exposure_time = device.GetNodeMap()->GetNode("ExposureTime");
 
-        auto setpoint = _image_config.get().exposure_time.toMicroseconds();
+        auto setpoint = image_config.exposure_time.toMicroseconds();
         exposure_time->SetValue(static_cast<double>(setpoint));
 
         auto current = exposure_time->GetValue();
@@ -748,6 +767,14 @@ void Task::exposureConfiguration(Arena::IDevice& device)
             throw runtime_error("Exposure Time value differs.");
         }
     }
+
+    LOG_INFO_S << "Setting device's target brightness to "
+               << image_config.target_brightness;
+
+    GenApi::CIntegerPtr targetBrightness =
+        device.GetNodeMap()->GetNode("TargetBrightness");
+
+    targetBrightness->SetValue(image_config.target_brightness);
 }
 
 void Task::acquisitionConfiguration(Arena::IDevice& device)
@@ -945,42 +972,4 @@ void Task::collectInfo()
         _info.write(info_message);
         m_last_message = current_time;
     }
-}
-
-void Task::autoExposureConfiguration(Arena::IDevice& device)
-{
-    // auto ptp_config = _ptp_config.get();
-
-    // if (ptp_config.enabled) {
-    //     LOG_ERROR_S << "PTPSync must be disabled in auto-exposure mode" << endl;
-
-    //     return;
-    // }
-
-    auto image_config = _image_config.get();
-
-    LOG_INFO_S << "Setting auto-exposure to continuous";
-
-    GenApi::CIntegerPtr exposureAuto = device.GetNodeMap()->GetNode("ExposureAuto");
-
-    exposureAuto->SetValue(image_config.exposure_auto);
-
-    LOG_INFO_S << "Setting exposure time lower and upper limit";
-
-    GenApi::CFloatPtr lowerLimit = device.GetNodeMap()->GetNode("ExposureAutoLowerLimit");
-    GenApi::CFloatPtr upperLimit = device.GetNodeMap()->GetNode("ExposureAutoUpperLimit");
-
-    lowerLimit->SetValue(image_config.min_exposure_time.toMicroseconds());
-    upperLimit->SetValue(image_config.max_exposure_time.toMicroseconds());
-
-    LOG_DEBUG_S << "Exposure time lower limit: " << image_config.min_exposure_time;
-    LOG_DEBUG_S << "Exposure time upper limit: " << image_config.max_exposure_time;
-
-    LOG_INFO_S << "Setting device's target brightness to "
-               << image_config.target_brightness;
-
-    GenApi::CIntegerPtr targetBrightness =
-        device.GetNodeMap()->GetNode("TargetBrightness");
-
-    targetBrightness->SetValue(image_config.target_brightness);
 }

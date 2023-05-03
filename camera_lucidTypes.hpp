@@ -45,6 +45,12 @@ namespace camera_lucid {
     };
     static std::vector<std::string> exposure_auto_name = {"Off", "Once", "Continuous"};
 
+    enum ExposureAutoLimitAuto {
+        EXPOSURE_AUTO_LIMIT_AUTO_OFF = 0,
+        EXPOSURE_AUTO_LIMIT_AUTO_CONTINUOUS = 1
+    };
+    static std::vector<std::string> exposure_auto_limit_auto_name = {"Off", "Continuous"};
+
     enum DeviceTemperatureSelector {
         DEVICE_TEMPERATURE_SELECTOR_SENSOR = 0,
         DEVICE_TEMPERATURE_SELECTOR_TEC = 1
@@ -186,12 +192,14 @@ namespace camera_lucid {
         uint8_t depth = 8;
         /** Sets the automatic exposure mode.*/
         ExposureAuto exposure_auto = EXPOSURE_AUTO_CONTINUOUS;
+        /** Sets the exposure auto limit auto exposure mode*/
+        ExposureAutoLimitAuto exposure_auto_limit_auto = EXPOSURE_AUTO_LIMIT_AUTO_OFF;
         /** Controls the device exposure time.*/
-        base::Time exposure_time = base::Time::fromMicroseconds(1000);
+        base::Time exposure_time = base::Time::fromMicroseconds(0.001);
         /** Minimum exposure time.*/
-        base::Time min_exposure_time = base::Time::fromMicroseconds(46.912);
+        base::Time min_exposure_time = base::Time::fromMicroseconds(0.000046912);
         /** Maximum exposure time.*/
-        base::Time max_exposure_time = base::Time::fromMicroseconds(82446.1);
+        base::Time max_exposure_time = base::Time::fromMicroseconds(0.082446100);
         /** Width of the image provided by the device in pixels.*/
         int width = 2448;
         /** Height of the image provided by the device in pixels.*/
