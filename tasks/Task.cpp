@@ -727,31 +727,44 @@ void Task::exposureConfiguration(Arena::IDevice& device)
 
     // _analog_controller_config.get().gain_auto == GainAuto::GAIN_AUTO_CONTINUOUS
 
-    if (image_config.exposure_auto_limit_auto == ExposureAutoLimitAuto::EXPOSURE_AUTO_LIMIT_AUTO_OFF) {
-        LOG_INFO_S << "Setting exposure time lower and upper limit";
+    if (image_config.exposure_auto == ExposureAuto::EXPOSURE_AUTO_CONTINUOUS) {
+        Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
+            "ExposureAutoLimitAuto",
+            getEnumName(image_config.exposure_auto_limit_auto,
+                exposure_auto_limit_auto_name));
 
-        GenApi::CFloatPtr lowerLimit =
-            device.GetNodeMap()->GetNode("ExposureAutoLowerLimit");
-        GenApi::CFloatPtr upperLimit =
-            device.GetNodeMap()->GetNode("ExposureAutoUpperLimit");
+        if (image_config.exposure_auto_limit_auto ==
+            ExposureAutoLimitAuto::EXPOSURE_AUTO_LIMIT_AUTO_OFF) {
+            LOG_INFO_S << "Setting exposure time lower and upper limit";
 
-        lowerLimit->SetValue(image_config.min_exposure_time.toMicroseconds());
-        upperLimit->SetValue(image_config.max_exposure_time.toMicroseconds());
+            GenApi::CFloatPtr lowerLimit =
+                device.GetNodeMap()->GetNode("ExposureAutoLowerLimit");
+            GenApi::CFloatPtr upperLimit =
+                device.GetNodeMap()->GetNode("ExposureAutoUpperLimit");
 
-        LOG_DEBUG_S << "Exposure time lower limit: " << image_config.min_exposure_time;
-        LOG_DEBUG_S << "Exposure time upper limit: " << image_config.max_exposure_time;
+            lowerLimit->SetValue(image_config.min_exposure_time.toMicroseconds());
+            upperLimit->SetValue(image_config.max_exposure_time.toMicroseconds());
+
+            LOG_DEBUG_S << "Exposure time lower limit: "
+                        << image_config.min_exposure_time;
+            LOG_DEBUG_S << "Exposure time upper limit: "
+                        << image_config.max_exposure_time;
+        }
     }
 
-    GenApi::CEnumerationPtr exposure_auto = device.GetNodeMap()->GetNode("ExposureAuto");
+    // GenApi::CEnumerationPtr exposure_auto =
+    // device.GetNodeMap()->GetNode("ExposureAuto");
 
-    auto current = exposure_auto->GetCurrentEntry()->GetSymbolic();
-    if (current != getEnumName(image_config.exposure_auto, exposure_auto_name)) {
-        LOG_WARN_S << "ExposureAuto value differs setpoint: "
-                   << getEnumName(image_config.exposure_auto, exposure_auto_name)
-                   << " current: " << current;
-        throw runtime_error("ExposureAuto value differs.");
-    }
+    // auto current = exposure_auto->GetCurrentEntry()->GetSymbolic();
+    // if (current != getEnumName(image_config.exposure_auto, exposure_auto_name)) {
+    //     LOG_WARN_S << "ExposureAuto value differs setpoint: "
+    //                << getEnumName(image_config.exposure_auto, exposure_auto_name)
+    //                << " current: " << current;
+    //     throw runtime_error("ExposureAuto value differs.");
+    // }
 
+
+    // CLEANUP USE ELSE ALSO
     if (image_config.exposure_auto == ExposureAuto::EXPOSURE_AUTO_OFF) {
         LOG_INFO_S << "Setting exposure time to: "
                    << image_config.exposure_time.toMicroseconds() << "us";
