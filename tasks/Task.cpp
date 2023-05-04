@@ -725,8 +725,6 @@ void Task::exposureConfiguration(Arena::IDevice& device)
         "ExposureAuto",
         getEnumName(image_config.exposure_auto, exposure_auto_name));
 
-    // _analog_controller_config.get().gain_auto == GainAuto::GAIN_AUTO_CONTINUOUS
-
     if (image_config.exposure_auto == ExposureAuto::EXPOSURE_AUTO_CONTINUOUS) {
         Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
             "ExposureAutoLimitAuto",
@@ -882,6 +880,11 @@ void Task::analogConfiguration(Arena::IDevice& device)
         }
     }
 
+    /** AutoGain Limits Configuration:
+     *  - Checks if the gain mode is set to either
+     *  "Once" or "Continuous".
+     *  - Sets the lower limit.
+     *  - Sets the upper limit. */
     if (_analog_controller_config.get().gain_auto == GainAuto::GAIN_AUTO_CONTINUOUS ||
         _analog_controller_config.get().gain_auto == GainAuto::GAIN_AUTO_ONCE) {
         GenApi::CFloatPtr gain_low = device.GetNodeMap()->GetNode("GainAutoLowerLimit");
@@ -896,15 +899,18 @@ void Task::analogConfiguration(Arena::IDevice& device)
         gain_upp->SetValue(static_cast<double>(_analog_controller_config.get().gain_max));
     }
 
-    // Gamma configuration:
-    // Lower and Upper limits and only writable on continuous mode.
-
-    GenApi::CFloatPtr value = device.GetNodeMap()->GetNode("Gamma");
-
+    /** Gamma configuration:
+     *  - Sets Gamma mode (Enabled or Disabled).
+     *  - Gets the initial Gamma value (1 is the Default)
+     *  and changes it.
+     *  - Note: 0.5 the Optimal Gamma Value for outdoor 
+     *  usage as stated on the camera's manual. */
     LOG_INFO_S << "Setting Gamma Mode";
     Arena::SetNodeValue<bool>(device.GetNodeMap(),
         "GammaEnable",
         _analog_controller_config.get().gamma_enabled);
+
+    GenApi::CFloatPtr value = device.GetNodeMap()->GetNode("Gamma");
 
     LOG_INFO_S << "Setting Gamma Values";
     value->SetValue(_analog_controller_config.get().gamma);
