@@ -725,6 +725,14 @@ void Task::exposureConfiguration(Arena::IDevice& device)
         "ExposureAuto",
         getEnumName(image_config.exposure_auto, exposure_auto_name));
 
+    /** Exposure configuration:
+     *  - Checks if exposure auto is on (continuous)]
+     *      - Checks if exposure auto limit is off
+     *          - Sets the lower limit.
+     *          - Sets the upper limit.
+     *  - Checks if exposure auto is off
+     *      - Sets fixed exposure time
+     * */
     if (image_config.exposure_auto == ExposureAuto::EXPOSURE_AUTO_CONTINUOUS) {
         Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
             "ExposureAutoLimitAuto",
@@ -749,21 +757,7 @@ void Task::exposureConfiguration(Arena::IDevice& device)
                         << image_config.max_exposure_time;
         }
     }
-
-    // GenApi::CEnumerationPtr exposure_auto =
-    // device.GetNodeMap()->GetNode("ExposureAuto");
-
-    // auto current = exposure_auto->GetCurrentEntry()->GetSymbolic();
-    // if (current != getEnumName(image_config.exposure_auto, exposure_auto_name)) {
-    //     LOG_WARN_S << "ExposureAuto value differs setpoint: "
-    //                << getEnumName(image_config.exposure_auto, exposure_auto_name)
-    //                << " current: " << current;
-    //     throw runtime_error("ExposureAuto value differs.");
-    // }
-
-
-    // CLEANUP USE ELSE ALSO
-    if (image_config.exposure_auto == ExposureAuto::EXPOSURE_AUTO_OFF) {
+    else if (image_config.exposure_auto == ExposureAuto::EXPOSURE_AUTO_OFF) {
         LOG_INFO_S << "Setting exposure time to: "
                    << image_config.exposure_time.toMicroseconds() << "us";
         GenApi::CFloatPtr exposure_time = device.GetNodeMap()->GetNode("ExposureTime");
@@ -779,6 +773,10 @@ void Task::exposureConfiguration(Arena::IDevice& device)
         }
     }
 
+    /** Target brightness configuration:
+     *  - Sets target brightness value
+     *  - Note: 70 is the optimal target brightness value for outdoor 
+     *  usage, as stated in the camera's manual. */
     LOG_INFO_S << "Setting device's target brightness to "
                << image_config.target_brightness;
 
