@@ -116,7 +116,7 @@ bool Task::configureHook()
         switchOverAccess(*device); // get() returns a reference
 
         if (_camera_config.get().factory_reset) {
-            LOG_INFO_S << "Performing Factory Reset" << endl;
+            LOG_INFO_S << "Performing Factory Reset";
             factoryReset(device.release(), system);
 
             device.reset(connectToCamera(system), system);
@@ -127,7 +127,7 @@ bool Task::configureHook()
         m_device = device.release(); // returns pointer
     }
     catch (GenICam::GenericException& ge) {
-        LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
+        LOG_ERROR_S << "GenICam exception thrown: " << ge.what();
         throw std::runtime_error(ge.what());
     }
     return true;
@@ -139,12 +139,12 @@ bool Task::startHook()
         return false;
     }
 
-    LOG_INFO_S << "Starting frame acquisition." << endl;
+    LOG_INFO_S << "Starting frame acquisition.";
     try {
         m_device->StartStream();
     }
     catch (GenICam::GenericException& ge) {
-        LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
+        LOG_ERROR_S << "GenICam exception thrown: " << ge.what();
         throw std::runtime_error(ge.what());
     }
 
@@ -188,7 +188,7 @@ void Task::stopHook()
         m_device->StopStream();
     }
     catch (GenICam::GenericException& ge) {
-        LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
+        LOG_ERROR_S << "GenICam exception thrown: " << ge.what();
         throw std::runtime_error(ge.what());
     }
 }
@@ -199,20 +199,20 @@ void Task::cleanupHook()
         System::Instance().DestroyDevice(m_device);
     }
     catch (GenICam::GenericException& ge) {
-        LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
+        LOG_ERROR_S << "GenICam exception thrown: " << ge.what();
         throw std::runtime_error(ge.what());
     }
 }
 
 Arena::IDevice* Task::connectToCamera(System& system)
 {
-    LOG_INFO_S << "Looking for camera" << endl;
+    LOG_INFO_S << "Looking for camera";
     m_ip = _camera_config.get().ip;
     system.UpdateDevices(100);
     vector<Arena::DeviceInfo> device_infos = system.GetDevices();
     for (auto device : device_infos) {
         if (m_ip.compare(device.IpAddressStr()) == 0) {
-            LOG_INFO_S << "Connected to camera" << endl;
+            LOG_INFO_S << "Connected to camera";
             return system.CreateDevice(device);
         }
     }
@@ -222,13 +222,13 @@ Arena::IDevice* Task::connectToCamera(System& system)
         cameras.append(", ");
     }
     LOG_ERROR_S << "Camera " << _camera_config.get().ip
-                << " not found. Found cameras: " << cameras << endl;
+                << " not found. Found cameras: " << cameras;
     throw runtime_error("Camera not found.");
 }
 
 void Task::switchOverAccess(Arena::IDevice& device)
 {
-    LOG_INFO_S << "Checking Camera Read/Write Access." << endl;
+    LOG_INFO_S << "Checking Camera Read/Write Access.";
     // Retrieve DeviceAccessStatus
     GenICam::gcstring device_access_status =
         Arena::GetNodeValue<GenICam::gcstring>(device.GetTLDeviceNodeMap(),
@@ -240,7 +240,7 @@ void Task::switchOverAccess(Arena::IDevice& device)
         Arena::SetNodeValue<int64_t>(device.GetTLDeviceNodeMap(),
             "CcpSwitchoverKey",
             m_switchover_key);
-        LOG_INFO_S << "Task already has the Camera Read/Write Access." << endl;
+        LOG_INFO_S << "Task already has the Camera Read/Write Access.";
         return;
     }
 
@@ -259,36 +259,35 @@ void Task::switchOverAccess(Arena::IDevice& device)
         Arena::GetNodeValue<GenICam::gcstring>(device.GetTLDeviceNodeMap(),
             "DeviceAccessStatus");
     if (device_access_status == "ReadWrite") {
-        LOG_INFO_S << "Task retrieved the Camera Read/Write Access." << endl;
+        LOG_INFO_S << "Task retrieved the Camera Read/Write Access.";
         return;
     }
 
-    LOG_WARN_S << "Task failed to retrieved the Camera Read/Write Access." << endl;
     throw runtime_error("Task failed to retrieved the Camera Read/Write Access.");
 }
 
 void Task::configureCamera(Arena::IDevice& device, System& system)
 {
-    LOG_INFO_S << "Configuring camera." << endl;
+    LOG_INFO_S << "Configuring camera.";
 
-    LOG_INFO_S << "Setting StreamBufferHandlingMode." << endl;
+    LOG_INFO_S << "Setting StreamBufferHandlingMode.";
     Arena::SetNodeValue<GenICam::gcstring>(device.GetTLStreamNodeMap(),
         "StreamBufferHandlingMode",
         "NewestOnly");
 
     // Use max supported packet size. We use transfer control to ensure that only one
     // camera is transmitting at a time.
-    LOG_INFO_S << "Setting StreamAutoNegotiatePacketSize." << endl;
+    LOG_INFO_S << "Setting StreamAutoNegotiatePacketSize.";
     Arena::SetNodeValue<bool>(device.GetTLStreamNodeMap(),
         "StreamAutoNegotiatePacketSize",
         true);
 
-    LOG_INFO_S << "Setting StreamPacketResendEnable." << endl;
+    LOG_INFO_S << "Setting StreamPacketResendEnable.";
     Arena::SetNodeValue<bool>(device.GetTLStreamNodeMap(),
         "StreamPacketResendEnable",
         true);
 
-    LOG_INFO_S << "Setting PixelFormat." << endl;
+    LOG_INFO_S << "Setting PixelFormat.";
     Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
         "PixelFormat",
         convertFrameModeToPixelFormat(_image_config.get().format,
@@ -339,18 +338,18 @@ void Task::acquireFrame()
         if (_transmission_config.get().explicit_data_transfer) {
             Arena::ExecuteNode(m_device->GetNodeMap(), "TransferStop");
         }
-        LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
+        LOG_ERROR_S << "GenICam exception thrown: " << ge.what();
         m_acquisition_timeouts_count++;
         m_acquisition_timeouts_sum++;
         return;
     }
     catch (GenICam::GenericException& ge) {
-        LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
+        LOG_ERROR_S << "GenICam exception thrown: " << ge.what();
         throw runtime_error(ge.what());
     }
 
     if (frame.image->IsIncomplete()) {
-        LOG_ERROR_S << "Image is not complete!! " << endl;
+        LOG_ERROR_S << "Image is not complete!! ";
         m_incomplete_images_count++;
         m_incomplete_images_sum++;
         return;
@@ -524,16 +523,12 @@ void Task::binningConfiguration(Arena::IDevice& device)
     GenApi::CEnumEntryPtr binning_sensor_entry =
         binning_selector_node->GetEntryByName("Digital");
     if (binning_sensor_entry == 0 || !GenApi::IsAvailable(binning_sensor_entry)) {
-        LOG_WARN_S << "Sensor binning not supported by device: not available from "
-                      "BinningSelector"
-                   << endl;
         throw runtime_error("Sensor binning not supported by device: not available "
                             "from BinningSelector");
     }
 
     LOG_INFO_S << "Set binning mode to "
-               << getEnumName(_binning_config.get().selector, binning_selector_name)
-               << endl;
+               << getEnumName(_binning_config.get().selector, binning_selector_name);
     Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "BinningSelector",
         getEnumName(_binning_config.get().selector, binning_selector_name));
@@ -544,9 +539,6 @@ void Task::binningConfiguration(Arena::IDevice& device)
     //    probably just a bug in the firmware.
     if (!GenApi::IsAvailable(device.GetNodeMap()->GetNode("BinningVertical")) ||
         !GenApi::IsAvailable(device.GetNodeMap()->GetNode("BinningVertical"))) {
-        LOG_WARN_S << "Sensor binning not supported by device: BinningVertical or "
-                      "BinningHorizontal not available."
-                   << endl;
         throw runtime_error("Sensor binning not supported by device: BinningVertical or "
                             "BinningHorizontal not available.");
     }
@@ -564,13 +556,13 @@ void Task::binningConfiguration(Arena::IDevice& device)
     if (_binning_config.get().binning_x > max_binning_height) {
         LOG_WARN_S << "Binning_x is bigger than the maximum allowed value! Setpoint: "
                    << _binning_config.get().binning_x
-                   << ". Maximum: " << max_binning_height << endl;
+                   << ". Maximum: " << max_binning_height;
         throw runtime_error("Binning_x is bigger than the maximum allowed value.");
     }
     else if (_binning_config.get().binning_y > max_binning_width) {
         LOG_WARN_S << "Binning_y is bigger than the maximum allowed value! Setpoint: "
                    << _binning_config.get().binning_y
-                   << ". Maximum: " << max_binning_width << endl;
+                   << ". Maximum: " << max_binning_width;
         throw runtime_error("Binning_y is bigger than the maximum allowed value.");
     }
 
@@ -594,7 +586,6 @@ void Task::binningConfiguration(Arena::IDevice& device)
             Arena::GetNodeValue<int64_t>(device.GetNodeMap(), "BinningVertical") ||
         _binning_config.get().binning_x !=
             Arena::GetNodeValue<int64_t>(device.GetNodeMap(), "BinningHorizontal")) {
-        LOG_WARN_S << "Failed setting binning parameters.";
         throw runtime_error("Failed setting binning parameters.");
     }
 }
@@ -612,16 +603,13 @@ void Task::decimationConfiguration(Arena::IDevice& device)
         decimation_selector_node->GetEntryByName(
             getEnumName(_decimation_config.get().selector, decimation_selector_name));
     if (decimation_sensor_entry == 0 || !GenApi::IsAvailable(decimation_sensor_entry)) {
-        LOG_WARN_S << "Sensor decimation not supported by device: not available from "
-                      "DecimationSelector."
-                   << endl;
         throw runtime_error("Sensor decimation not supported by device: not available "
                             "from DecimationSelector.");
     }
 
     LOG_INFO_S << "Set decimation mode to: "
-               << getEnumName(_decimation_config.get().selector, decimation_selector_name)
-               << endl;
+               << getEnumName(_decimation_config.get().selector,
+                      decimation_selector_name);
     Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "DecimationSelector",
         getEnumName(_decimation_config.get().selector, decimation_selector_name));
@@ -632,9 +620,6 @@ void Task::decimationConfiguration(Arena::IDevice& device)
     //    probably just a bug in the firmware.
     if (!GenApi::IsAvailable(device.GetNodeMap()->GetNode("DecimationVertical")) ||
         !GenApi::IsAvailable(device.GetNodeMap()->GetNode("DecimationVertical"))) {
-        LOG_WARN_S << "Sensor decimation not supported by device: DecimationVertical or "
-                      "DecimationHorizontal not available."
-                   << endl;
         throw runtime_error("Sensor decimation not supported by device: "
                             "DecimationVertical or DecimationHorizontal not available.");
     }
@@ -650,13 +635,13 @@ void Task::decimationConfiguration(Arena::IDevice& device)
     if (_decimation_config.get().decimation_x > max_decimation_height) {
         LOG_WARN_S << "Decimation_x is bigger than the maximum allowed value! Setpoint: "
                    << _decimation_config.get().decimation_x
-                   << ". Maximum: " << max_decimation_height << endl;
+                   << ". Maximum: " << max_decimation_height;
         throw runtime_error("Decimation_x is bigger than the maximum allowed value");
     }
     else if (_decimation_config.get().decimation_y > max_decimation_width) {
         LOG_WARN_S << "Decimation_y is bigger than the maximum allowed value! Setpoint: "
                    << _decimation_config.get().decimation_y
-                   << ". Maximum: " << max_decimation_width << endl;
+                   << ". Maximum: " << max_decimation_width;
         throw runtime_error("Decimation_y is bigger than the maximum allowed value.");
     }
 
@@ -680,46 +665,41 @@ void Task::decimationConfiguration(Arena::IDevice& device)
             Arena::GetNodeValue<int64_t>(device.GetNodeMap(), "DecimationVertical") ||
         _decimation_config.get().decimation_x !=
             Arena::GetNodeValue<int64_t>(device.GetNodeMap(), "DecimationHorizontal")) {
-        LOG_WARN_S << "Failed setting decimation parameters.";
         throw runtime_error("Failed setting decimation parameters.");
     }
 }
 
 void Task::dimensionsConfiguration(Arena::IDevice& device)
 {
-    LOG_INFO_S << "Setting Dimensions." << endl;
+    LOG_INFO_S << "Setting Dimensions.";
     GenApi::CIntegerPtr width = device.GetNodeMap()->GetNode("Width");
     GenApi::CIntegerPtr height = device.GetNodeMap()->GetNode("Height");
     GenApi::CIntegerPtr offset_x = device.GetNodeMap()->GetNode("OffsetX");
     GenApi::CIntegerPtr offset_y = device.GetNodeMap()->GetNode("OffsetY");
 
     if (!width || !GenApi::IsReadable(width) || !GenApi::IsWritable(width)) {
-        LOG_ERROR_S << "Width node not found/readable/writable." << endl;
         throw runtime_error("Width node not found/readable/writable.");
     }
 
     if (!height || !GenApi::IsReadable(height) || !GenApi::IsWritable(height)) {
-        LOG_ERROR_S << "Height node not found/readable/writable." << endl;
         throw runtime_error("Height node not found/readable/writable.");
     }
 
     if (!offset_x || !GenApi::IsReadable(offset_x) || !GenApi::IsWritable(offset_x)) {
-        LOG_ERROR_S << "Offset X node not found/readable/writable." << endl;
         throw runtime_error("Offset X node not found/readable/writable.");
     }
 
     if (!offset_y || !GenApi::IsReadable(offset_y) || !GenApi::IsWritable(offset_y)) {
-        LOG_ERROR_S << "Offset Y node not found/readable/writable." << endl;
         throw runtime_error("Offset Y node not found/readable/writable.");
     }
 
-    LOG_INFO_S << "Setting Width." << endl;
+    LOG_INFO_S << "Setting Width.";
     width->SetValue(_image_config.get().width);
-    LOG_INFO_S << "Setting Height." << endl;
+    LOG_INFO_S << "Setting Height.";
     height->SetValue(_image_config.get().height);
-    LOG_INFO_S << "Setting Offset X." << endl;
+    LOG_INFO_S << "Setting Offset X.";
     offset_x->SetValue(_image_config.get().offset_x);
-    LOG_INFO_S << "Setting Offset Y." << endl;
+    LOG_INFO_S << "Setting Offset Y.";
     offset_y->SetValue(_image_config.get().offset_y);
 
     if (_image_config.get().width !=
@@ -736,58 +716,93 @@ void Task::dimensionsConfiguration(Arena::IDevice& device)
 
 void Task::exposureConfiguration(Arena::IDevice& device)
 {
+    auto image_config = _image_config.get();
+
     LOG_INFO_S << "Setting auto exposure to "
-               << getEnumName(_image_config.get().exposure_auto, exposure_auto_name)
-               << endl;
+               << getEnumName(image_config.exposure_auto, exposure_auto_name);
+
     Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "ExposureAuto",
-        getEnumName(_image_config.get().exposure_auto, exposure_auto_name));
+        getEnumName(image_config.exposure_auto, exposure_auto_name));
 
-    GenApi::CEnumerationPtr exposure_auto = device.GetNodeMap()->GetNode("ExposureAuto");
+    /** Exposure configuration:
+     *  - Checks if exposure auto is on (continuous)]
+     *      - Checks if exposure auto limit is off
+     *          - Sets the lower limit.
+     *          - Sets the upper limit.
+     *  - Checks if exposure auto is off
+     *      - Sets fixed exposure time
+     * */
+    if (image_config.exposure_auto == ExposureAuto::EXPOSURE_AUTO_CONTINUOUS) {
+        Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
+            "ExposureAutoLimitAuto",
+            getEnumName(image_config.exposure_auto_limit_auto,
+                exposure_auto_limit_auto_name));
 
-    auto current = exposure_auto->GetCurrentEntry()->GetSymbolic();
-    if (current != getEnumName(_image_config.get().exposure_auto, exposure_auto_name)) {
-        LOG_WARN_S << "ExposureAuto value differs setpoint: "
-                   << getEnumName(_image_config.get().exposure_auto, exposure_auto_name)
-                   << " current: " << current << endl;
-        throw runtime_error("ExposureAuto value differs.");
+        if (image_config.exposure_auto_limit_auto ==
+            ExposureAutoLimitAuto::EXPOSURE_AUTO_LIMIT_AUTO_OFF) {
+            LOG_INFO_S << "Setting exposure time lower and upper limit";
+
+            GenApi::CFloatPtr lowerLimit =
+                device.GetNodeMap()->GetNode("ExposureAutoLowerLimit");
+            GenApi::CFloatPtr upperLimit =
+                device.GetNodeMap()->GetNode("ExposureAutoUpperLimit");
+
+            lowerLimit->SetValue(image_config.min_exposure_time.toMicroseconds());
+            upperLimit->SetValue(image_config.max_exposure_time.toMicroseconds());
+
+            LOG_DEBUG_S << "Exposure time lower limit: "
+                        << image_config.min_exposure_time;
+            LOG_DEBUG_S << "Exposure time upper limit: "
+                        << image_config.max_exposure_time;
+        }
     }
-
-    if (_image_config.get().exposure_auto == ExposureAuto::EXPOSURE_AUTO_OFF) {
+    else if (image_config.exposure_auto == ExposureAuto::EXPOSURE_AUTO_OFF) {
         LOG_INFO_S << "Setting exposure time to: "
-                   << _image_config.get().exposure_time.toMicroseconds() << "us" << endl;
+                   << image_config.exposure_time.toMicroseconds() << "us";
         GenApi::CFloatPtr exposure_time = device.GetNodeMap()->GetNode("ExposureTime");
 
-        auto setpoint = _image_config.get().exposure_time.toMicroseconds();
-        exposure_time->SetValue(
-            static_cast<double>(setpoint));
+        auto setpoint = image_config.exposure_time.toMicroseconds();
+        exposure_time->SetValue(static_cast<double>(setpoint));
 
         auto current = exposure_time->GetValue();
         if (abs(current - setpoint) >= 10) {
             LOG_WARN_S << "Exposure Time value differs from setpoint: " << setpoint
-                       << " current: " << current << endl;
+                       << " current: " << current;
             throw runtime_error("Exposure Time value differs.");
         }
     }
+
+    /** Target brightness configuration:
+     *  - Sets target brightness value
+     *  - Note: 70 is the optimal target brightness value for outdoor 
+     *  usage, as stated in the camera's manual. */
+    LOG_INFO_S << "Setting device's target brightness to "
+               << image_config.target_brightness;
+
+    GenApi::CIntegerPtr targetBrightness =
+        device.GetNodeMap()->GetNode("TargetBrightness");
+
+    targetBrightness->SetValue(image_config.target_brightness);
 }
 
 void Task::acquisitionConfiguration(Arena::IDevice& device)
 {
     auto config = _image_config.get();
 
-    LOG_INFO_S << "Configuring Acquisition." << endl;
+    LOG_INFO_S << "Configuring Acquisition.";
 
-    LOG_INFO_S << "Set acquisition start mode" << endl;
+    LOG_INFO_S << "Set acquisition start mode";
     Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
         "AcquisitionStartMode",
         acquisition_start_mode_name.at(config.acquisition_start_mode).c_str());
 
-    LOG_INFO_S << "Setting Acquisition Mode." << endl;
+    LOG_INFO_S << "Setting Acquisition Mode.";
     Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
         "AcquisitionMode",
         "Continuous");
 
-    LOG_INFO_S << "Configure Acquisition Frame Rate." << endl;
+    LOG_INFO_S << "Configure Acquisition Frame Rate.";
     GenApi::CFloatPtr acquisition_frame_rate =
         device.GetNodeMap()->GetNode("AcquisitionFrameRate");
     if (config.acquisition_start_mode == ACQUISITION_START_MODE_PTPSYNC) {
@@ -803,19 +818,17 @@ void Task::acquisitionConfiguration(Arena::IDevice& device)
             "AcquisitionFrameRateEnable",
             true);
         acquisition_frame_rate->SetValue(config.frame_rate);
-        LOG_INFO_S << "Setting Acquisition Frame Rate to " << config.frame_rate << " FPS"
-                   << endl;
+        LOG_INFO_S << "Setting Acquisition Frame Rate to " << config.frame_rate << " FPS";
     }
 }
 
 void Task::analogConfiguration(Arena::IDevice& device)
 {
-    LOG_INFO_S << "Configuring Analog Control." << endl;
+    LOG_INFO_S << "Configuring Analog Control.";
 
     LOG_INFO_S << "Setting Gain Selector to ."
                << getEnumName(_analog_controller_config.get().gain_selector,
-                      gain_selector_name)
-               << endl;
+                      gain_selector_name);
     Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "GainSelector",
         getEnumName(_analog_controller_config.get().gain_selector, gain_selector_name));
@@ -828,13 +841,12 @@ void Task::analogConfiguration(Arena::IDevice& device)
         LOG_WARN_S << "GainSelector value differs setpoint: "
                    << getEnumName(_analog_controller_config.get().gain_selector,
                           gain_selector_name)
-                   << " current: " << current << endl;
+                   << " current: " << current;
         throw runtime_error("GainSelector value differs.");
     }
 
     LOG_INFO_S << "Setting Gain Auto mode to ."
-               << getEnumName(_analog_controller_config.get().gain_auto, gain_auto_name)
-               << endl;
+               << getEnumName(_analog_controller_config.get().gain_auto, gain_auto_name);
     Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "GainAuto",
         getEnumName(_analog_controller_config.get().gain_auto, gain_auto_name));
@@ -847,12 +859,12 @@ void Task::analogConfiguration(Arena::IDevice& device)
         LOG_WARN_S << "GainAuto value differs setpoint: "
                    << getEnumName(_analog_controller_config.get().gain_auto,
                           gain_auto_name)
-                   << " current: " << current << endl;
+                   << " current: " << current;
         throw runtime_error("GainAuto value differs.");
     }
 
     if (_analog_controller_config.get().gain_auto == GainAuto::GAIN_AUTO_OFF) {
-        LOG_INFO_S << "Setting gain to: " << _analog_controller_config.get().gain << endl;
+        LOG_INFO_S << "Setting gain to: " << _analog_controller_config.get().gain;
         GenApi::CFloatPtr gain = device.GetNodeMap()->GetNode("Gain");
 
         auto setpoint = _analog_controller_config.get().gain;
@@ -861,10 +873,45 @@ void Task::analogConfiguration(Arena::IDevice& device)
         auto current = gain->GetValue();
         if (abs(current - setpoint) >= 10) {
             LOG_WARN_S << "Gain value differs from setpoint: " << setpoint
-                       << " current: " << current << endl;
+                       << " current: " << current;
             throw runtime_error("Gain value differs.");
         }
     }
+
+    /** AutoGain Limits Configuration:
+     *  - Checks if the gain mode is set to either
+     *  "Once" or "Continuous".
+     *  - Sets the lower limit.
+     *  - Sets the upper limit. */
+    if (_analog_controller_config.get().gain_auto == GainAuto::GAIN_AUTO_CONTINUOUS ||
+        _analog_controller_config.get().gain_auto == GainAuto::GAIN_AUTO_ONCE) {
+        GenApi::CFloatPtr gain_low = device.GetNodeMap()->GetNode("GainAutoLowerLimit");
+        GenApi::CFloatPtr gain_upp = device.GetNodeMap()->GetNode("GainAutoUpperLimit");
+
+        LOG_INFO_S << "Setting gain lower limit to: "
+                   << _analog_controller_config.get().gain_min;
+        gain_low->SetValue(static_cast<double>(_analog_controller_config.get().gain_min));
+
+        LOG_INFO_S << "Setting gain higher limit to: "
+                   << _analog_controller_config.get().gain_max;
+        gain_upp->SetValue(static_cast<double>(_analog_controller_config.get().gain_max));
+    }
+
+    /** Gamma configuration:
+     *  - Sets Gamma mode (Enabled or Disabled).
+     *  - Gets the initial Gamma value (1 is the Default)
+     *  and changes it.
+     *  - Note: 0.5 the Optimal Gamma Value for outdoor 
+     *  usage as stated on the camera's manual. */
+    LOG_INFO_S << "Setting Gamma Mode";
+    Arena::SetNodeValue<bool>(device.GetNodeMap(),
+        "GammaEnable",
+        _analog_controller_config.get().gamma_enabled);
+
+    GenApi::CFloatPtr value = device.GetNodeMap()->GetNode("Gamma");
+
+    LOG_INFO_S << "Setting Gamma Values";
+    value->SetValue(_analog_controller_config.get().gamma);
 }
 
 void Task::factoryReset(Arena::IDevice* device, System& system)
@@ -885,7 +932,6 @@ void Task::factoryReset(Arena::IDevice* device, System& system)
         catch (GenICam::TimeoutException& ex) {
             if (base::Time::now() - start_time >=
                 _camera_config.get().camera_reset_timeout) {
-                LOG_ERROR_S << "Timeout waiting for camera restart." << endl;
                 throw runtime_error("Timeout waiting for camera restart.");
             }
             usleep(500000);
@@ -897,8 +943,7 @@ void Task::infoConfiguration(Arena::IDevice& device)
 {
     LOG_INFO_S << "Setting device temperature selector to "
                << getEnumName(_camera_config.get().temperature_selector,
-                      device_temperature_selector_name)
-               << endl;
+                      device_temperature_selector_name);
     Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "DeviceTemperatureSelector",
         getEnumName(_camera_config.get().temperature_selector,
@@ -913,7 +958,7 @@ void Task::infoConfiguration(Arena::IDevice& device)
         LOG_WARN_S << "DeviceTemperatureSelector value differs setpoint: "
                    << getEnumName(_camera_config.get().temperature_selector,
                           device_temperature_selector_name)
-                   << " current: " << current << endl;
+                   << " current: " << current;
         throw runtime_error("DeviceTemperatureSelector value differs.");
     }
     m_last_message = base::Time::now();
@@ -931,15 +976,14 @@ void Task::collectInfo()
             // get DeviceTemperature
             LOG_INFO_S << "Acquiring temperature from "
                        << getEnumName(_camera_config.get().temperature_selector,
-                              device_temperature_selector_name)
-                       << endl;
+                              device_temperature_selector_name);
             info_message.temperature = info_message.temperature.fromCelsius(
                 Arena::GetNodeValue<double>(m_device->GetNodeMap(), "DeviceTemperature"));
             info_message.acquisition_timeouts = m_acquisition_timeouts_sum;
             info_message.incomplete_images = m_incomplete_images_sum;
         }
         catch (GenICam::GenericException& ge) {
-            LOG_ERROR_S << "GenICam exception thrown: " << ge.what() << endl;
+            LOG_ERROR_S << "GenICam exception thrown: " << ge.what();
             throw runtime_error(ge.what());
         }
         _info.write(info_message);

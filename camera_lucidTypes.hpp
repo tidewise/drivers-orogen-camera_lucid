@@ -45,6 +45,12 @@ namespace camera_lucid {
     };
     static std::vector<std::string> exposure_auto_name = {"Off", "Once", "Continuous"};
 
+    enum ExposureAutoLimitAuto {
+        EXPOSURE_AUTO_LIMIT_AUTO_OFF = 0,
+        EXPOSURE_AUTO_LIMIT_AUTO_CONTINUOUS = 1
+    };
+    static std::vector<std::string> exposure_auto_limit_auto_name = {"Off", "Continuous"};
+
     enum DeviceTemperatureSelector {
         DEVICE_TEMPERATURE_SELECTOR_SENSOR = 0,
         DEVICE_TEMPERATURE_SELECTOR_TEC = 1
@@ -113,10 +119,20 @@ namespace camera_lucid {
     struct AnalogControllerConfig {
         /** Value used for gain*/
         float gain = 0.0;
+        /** Minimal Gain Value*/
+        float gain_min = 0.0;
+        /** Maximum Gain Value*/
+        float gain_max = 48.0;
         /** Sets the automatic Gain mode*/
         GainAuto gain_auto = GainAuto::GAIN_AUTO_OFF;
         /** Selects all shutters or shutter1 or shutter2*/
         GainSelector gain_selector = GainSelector::GAIN_SELECTOR_ALL;
+        /** Gamma correction mode - For uncontrolled outdoor environments,
+         *  The recommended configuration is enabled (true). */
+        bool gamma_enabled = true;
+        /** Gamma correction configuration - For uncontrolled outdoor environments,
+         * The recommended gamma value is 0.5. */
+        float gamma = 0.5;
     };
 
     struct PTPConfig {
@@ -176,8 +192,14 @@ namespace camera_lucid {
         uint8_t depth = 8;
         /** Sets the automatic exposure mode.*/
         ExposureAuto exposure_auto = EXPOSURE_AUTO_CONTINUOUS;
+        /** Sets the exposure auto limit auto exposure mode*/
+        ExposureAutoLimitAuto exposure_auto_limit_auto = EXPOSURE_AUTO_LIMIT_AUTO_OFF;
         /** Controls the device exposure time.*/
-        base::Time exposure_time = base::Time::fromMicroseconds(1000);
+        base::Time exposure_time = base::Time::fromMicroseconds(0.001);
+        /** Minimum exposure time.*/
+        base::Time min_exposure_time = base::Time::fromMicroseconds(0.000046912);
+        /** Maximum exposure time.*/
+        base::Time max_exposure_time = base::Time::fromMicroseconds(0.082446100);
         /** Width of the image provided by the device in pixels.*/
         int width = 2448;
         /** Height of the image provided by the device in pixels.*/
@@ -186,6 +208,9 @@ namespace camera_lucid {
         int offset_x = 0;
         /** Vertical offset from the origin to the region of interest in pixels.*/
         int offset_y = 0;
+        /** Default pixel value the camera will try to reach automatically.
+         * For uncontrolled outdoor environments, the recommended value is 70. */
+        uint8_t target_brightness = 70;
     };
 
     struct CameraConfig {
