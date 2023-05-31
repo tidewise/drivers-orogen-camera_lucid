@@ -195,11 +195,11 @@ namespace camera_lucid {
         /** Sets the exposure auto limit auto exposure mode*/
         ExposureAutoLimitAuto exposure_auto_limit_auto = EXPOSURE_AUTO_LIMIT_AUTO_OFF;
         /** Controls the device exposure time.*/
-        base::Time exposure_time = base::Time::fromMicroseconds(0.001);
+        base::Time exposure_time = base::Time::fromMilliseconds(1);
         /** Minimum exposure time.*/
-        base::Time min_exposure_time = base::Time::fromMicroseconds(0.000046912);
+        base::Time min_exposure_time = base::Time::fromMicroseconds(46.912);
         /** Maximum exposure time.*/
-        base::Time max_exposure_time = base::Time::fromMicroseconds(0.082446100);
+        base::Time max_exposure_time = base::Time::fromSeconds(10);
         /** Width of the image provided by the device in pixels.*/
         int width = 2448;
         /** Height of the image provided by the device in pixels.*/
