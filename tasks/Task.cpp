@@ -92,6 +92,26 @@ template <typename T> const char* getEnumName(T enum_type, vector<string> name)
     return name.at(enum_type).c_str();
 }
 
+class ImageCallback : public Arena::IImageCallback {
+public:
+    ImageCallback(Task* task)
+        : m_task(task)
+    {
+    }
+
+    ~ImageCallback()
+    {
+    }
+
+    void OnImage(Arena::IImage* pImage)
+    {
+        m_task->processFrame(pImage);
+    }
+
+private:
+    Task* m_task;
+};
+
 Task::Task(string const& name)
     : TaskBase(name)
 {
@@ -141,6 +161,11 @@ bool Task::startHook()
 
     LOG_INFO_S << "Starting frame acquisition.";
     try {
+        if (_image_config.get().orogen_acquisition_mode ==
+            OROGEN_ACQUISITION_MODE_CALLBACK) {
+            m_image_callback = make_unique<ImageCallback>(this);
+            m_device->RegisterImageCallback(m_image_callback.get());
+        }
         m_device->StartStream();
     }
     catch (GenICam::GenericException& ge) {
@@ -155,26 +180,29 @@ bool Task::startHook()
     m_check_status_deadline = base::Time::now();
     return true;
 }
+
 void Task::updateHook()
 {
     TaskBase::updateHook();
 
-    acquireFrame();
+    if (_image_config.get().orogen_acquisition_mode ==
+        OROGEN_ACQUISITION_MODE_UPDATE_HOOK) {
+        acquireFrame();
 
-    if (m_acquisition_timeouts_count > _image_config.get().max_acquisition_timeout) {
-        throw runtime_error("Exceded maximum number of timeouts!!");
-    }
-    if (m_incomplete_images_count > _image_config.get().max_incomplete_images) {
-        throw runtime_error("Exceded maximum number of incomplete images!!");
-    }
+        if (m_acquisition_timeouts_count > _image_config.get().max_acquisition_timeout) {
+            throw runtime_error("Exceded maximum number of timeouts!!");
+        }
+        if (m_incomplete_images_count > _image_config.get().max_incomplete_images) {
+            throw runtime_error("Exceded maximum number of incomplete images!!");
+        }
 
-    if (base::Time::now() > m_check_status_deadline) {
-        m_incomplete_images_count = 0;
-        m_acquisition_timeouts_count = 0;
-        m_check_status_deadline =
-            base::Time::now() + _image_config.get().check_image_status;
+        if (base::Time::now() > m_check_status_deadline) {
+            m_incomplete_images_count = 0;
+            m_acquisition_timeouts_count = 0;
+            m_check_status_deadline =
+                base::Time::now() + _image_config.get().check_image_status;
+        }
     }
-
     collectInfo();
 }
 void Task::errorHook()
@@ -186,6 +214,10 @@ void Task::stopHook()
     TaskBase::stopHook();
     try {
         m_device->StopStream();
+        if (_image_config.get().orogen_acquisition_mode ==
+            OROGEN_ACQUISITION_MODE_CALLBACK) {
+            m_device->DeregisterImageCallback(m_image_callback.get());
+        }
     }
     catch (GenICam::GenericException& ge) {
         LOG_ERROR_S << "GenICam exception thrown: " << ge.what();
@@ -319,7 +351,6 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
         0);
     m_frame.reset(frame);
 }
-
 void Task::acquireFrame()
 {
     RequeueImageFrame frame;
@@ -348,31 +379,40 @@ void Task::acquireFrame()
         throw runtime_error(ge.what());
     }
 
-    if (frame.image->IsIncomplete()) {
+    processFrame(frame.image);
+}
+
+void Task::processFrame(Arena::IImage* image)
+{
+    if (image->IsIncomplete()) {
         LOG_ERROR_S << "Image is not complete!! ";
         m_incomplete_images_count++;
         m_incomplete_images_sum++;
         return;
     }
 
-    size_t size = frame.image->GetSizeFilled();
-    size_t width = frame.image->GetWidth();
-    size_t height = frame.image->GetHeight();
-    PfncFormat pixel_format = static_cast<PfncFormat>(frame.image->GetPixelFormat());
+    size_t size = image->GetSizeFilled();
+    size_t width = image->GetWidth();
+    size_t height = image->GetHeight();
+    PfncFormat pixel_format = static_cast<PfncFormat>(image->GetPixelFormat());
     uint8_t data_depth = 0U;
     auto format = convertPixelFormatToFrameMode(pixel_format, data_depth);
 
-    Frame* out_frame = m_frame.write_access();
+    std::unique_ptr<Frame> out_frame(m_frame.try_write_access());
+    if (!out_frame) {
+        out_frame.reset(new base::samples::frame::Frame());
+    }
+
     if (width != out_frame->getWidth() || height != out_frame->getHeight() ||
         format != out_frame->getFrameMode()) {
-        out_frame->init(width, height, data_depth, format, 0, size);
+        out_frame->init(width, height, data_depth, format, -1, size);
     }
     out_frame->time = base::Time::now();
     out_frame->received_time = out_frame->time;
 
-    out_frame->setImage(frame.image->GetData(), size);
+    out_frame->setImage(image->GetData(), size);
     out_frame->setStatus(STATUS_VALID);
-    m_frame.reset(out_frame);
+    m_frame.reset(out_frame.release());
     _frame.write(m_frame);
 }
 
@@ -775,7 +815,7 @@ void Task::exposureConfiguration(Arena::IDevice& device)
 
     /** Target brightness configuration:
      *  - Sets target brightness value
-     *  - Note: 70 is the optimal target brightness value for outdoor 
+     *  - Note: 70 is the optimal target brightness value for outdoor
      *  usage, as stated in the camera's manual. */
     LOG_INFO_S << "Setting device's target brightness to "
                << image_config.target_brightness;
@@ -901,7 +941,7 @@ void Task::analogConfiguration(Arena::IDevice& device)
      *  - Sets Gamma mode (Enabled or Disabled).
      *  - Gets the initial Gamma value (1 is the Default)
      *  and changes it.
-     *  - Note: 0.5 the Optimal Gamma Value for outdoor 
+     *  - Note: 0.5 the Optimal Gamma Value for outdoor
      *  usage as stated on the camera's manual. */
     LOG_INFO_S << "Setting Gamma Mode";
     Arena::SetNodeValue<bool>(device.GetNodeMap(),

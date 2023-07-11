@@ -6,6 +6,7 @@
 #include "Arena/ArenaApi.h"
 #include "System.hpp"
 #include "camera_lucid/TaskBase.hpp"
+#include <memory>
 #include <string>
 
 namespace camera_lucid {
@@ -37,6 +38,7 @@ argument.
     private:
         std::string m_ip = "";
         Arena::IDevice* m_device = nullptr;
+        std::unique_ptr<Arena::IImageCallback> m_image_callback;
         RTT::extras::ReadOnlyPointer<base::samples::frame::Frame> m_frame;
         // The switchover key to be used
         int64_t m_switchover_key = 0x1000;
@@ -134,6 +136,7 @@ argument.
 
         void collectInfo();
         void acquireFrame();
+        void processFrame(Arena::IImage* image);
         base::samples::frame::frame_mode_t convertPixelFormatToFrameMode(
             PfncFormat format,
             uint8_t& data_depth);
