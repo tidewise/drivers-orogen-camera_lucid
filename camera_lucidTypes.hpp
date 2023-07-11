@@ -80,6 +80,11 @@ namespace camera_lucid {
         "LowLatency",
         "PTPSync"};
 
+    enum OrogenAcquisitionMode {
+        OROGEN_ACQUISITION_MODE_UPDATE_HOOK = 0,
+        OROGEN_ACQUISITION_MODE_CALLBACK = 1
+    };
+
     struct BinningConfig {
         /** Selects which binning engine is controlled by the BinningHorizontal and
          * BinningVertical features. */
@@ -169,6 +174,10 @@ namespace camera_lucid {
     };
 
     struct ImageConfig {
+        /** Control how orogen will request the frames, callling it from update hook or
+         * using the ImageCallbacks*/
+        OrogenAcquisitionMode orogen_acquisition_mode =
+            OROGEN_ACQUISITION_MODE_UPDATE_HOOK;
         /** Control when/how acquisition starts on the camera*/
         AcquisitionStartMode acquisition_start_mode = ACQUISITION_START_MODE_NORMAL;
 
