@@ -270,23 +270,6 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
 {
     LOG_INFO_S << "Configuring camera.";
 
-    LOG_INFO_S << "Setting StreamBufferHandlingMode.";
-    Arena::SetNodeValue<GenICam::gcstring>(device.GetTLStreamNodeMap(),
-        "StreamBufferHandlingMode",
-        "NewestOnly");
-
-    // Use max supported packet size. We use transfer control to ensure that only one
-    // camera is transmitting at a time.
-    LOG_INFO_S << "Setting StreamAutoNegotiatePacketSize.";
-    Arena::SetNodeValue<bool>(device.GetTLStreamNodeMap(),
-        "StreamAutoNegotiatePacketSize",
-        true);
-
-    LOG_INFO_S << "Setting StreamPacketResendEnable.";
-    Arena::SetNodeValue<bool>(device.GetTLStreamNodeMap(),
-        "StreamPacketResendEnable",
-        true);
-
     LOG_INFO_S << "Setting PixelFormat.";
     Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
         "PixelFormat",
@@ -486,6 +469,32 @@ void Task::ptpConfiguration(Arena::IDevice& device)
 void Task::transmissionConfiguration(Arena::IDevice& device)
 {
     auto config = _transmission_config.get();
+
+    LOG_INFO_S << "Setting StreamBufferHandlingMode.";
+    Arena::SetNodeValue<GenICam::gcstring>(device.GetTLStreamNodeMap(),
+        "StreamBufferHandlingMode",
+        "NewestOnly");
+
+    // Use max supported packet size. We use transfer control to ensure that only one
+    // camera is transmitting at a time.
+    LOG_INFO_S << "Setting StreamAutoNegotiatePacketSize.";
+    Arena::SetNodeValue<bool>(device.GetTLStreamNodeMap(),
+        "StreamAutoNegotiatePacketSize",
+        true);
+
+    GenApi::CIntegerPtr mtu =
+        device.GetNodeMap()->GetNode("DeviceStreamChannelPacketSize");
+
+    if (config.mtu_threshold > mtu->GetValue()) {
+        throw runtime_error("MTU negotiated is less than expected! Expected: " +
+                            to_string(config.mtu_threshold) +
+                            " current: " + to_string(mtu->GetValue()));
+    }
+
+    LOG_INFO_S << "Setting StreamPacketResendEnable.";
+    Arena::SetNodeValue<bool>(device.GetTLStreamNodeMap(),
+        "StreamPacketResendEnable",
+        true);
 
     GenApi::CIntegerPtr stream_channel_packet_delay =
         device.GetNodeMap()->GetNode("GevSCPD");
@@ -775,7 +784,7 @@ void Task::exposureConfiguration(Arena::IDevice& device)
 
     /** Target brightness configuration:
      *  - Sets target brightness value
-     *  - Note: 70 is the optimal target brightness value for outdoor 
+     *  - Note: 70 is the optimal target brightness value for outdoor
      *  usage, as stated in the camera's manual. */
     LOG_INFO_S << "Setting device's target brightness to "
                << image_config.target_brightness;
@@ -901,7 +910,7 @@ void Task::analogConfiguration(Arena::IDevice& device)
      *  - Sets Gamma mode (Enabled or Disabled).
      *  - Gets the initial Gamma value (1 is the Default)
      *  and changes it.
-     *  - Note: 0.5 the Optimal Gamma Value for outdoor 
+     *  - Note: 0.5 the Optimal Gamma Value for outdoor
      *  usage as stated on the camera's manual. */
     LOG_INFO_S << "Setting Gamma Mode";
     Arena::SetNodeValue<bool>(device.GetNodeMap(),
