@@ -166,6 +166,11 @@ namespace camera_lucid {
          * using PTPSync)
          */
         uint64_t frame_transmission_delay = 0;
+
+        /** Configures the MTU. Lucid Arena SDK negotiates automatically the packet size.
+         * However, we have this param to ensure the minimum acceptable value. If the MTU
+         * value is bellow this threshold an exception is thrown.*/
+        int mtu_threshold = 9000;
     };
 
     struct ImageConfig {
