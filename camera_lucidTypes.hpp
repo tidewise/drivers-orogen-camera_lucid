@@ -170,7 +170,13 @@ namespace camera_lucid {
         /** Configures the MTU. Lucid Arena SDK negotiates automatically the packet size.
          * However, we have this param to ensure the minimum acceptable value. If the MTU
          * value is bellow this threshold an exception is thrown.*/
-        int mtu_threshold = 9000;
+        int mtu_threshold = 1500;
+
+        /** Sleep while checking mtu value. The configurable task will be in a  loop until
+         * the desired mtu is configured or if timeouts.*/
+        base::Time mtu_check_sleep = base::Time::fromMilliseconds(500);
+        /** Timeout for negotiating mtu.*/
+        base::Time mtu_check_timeout = base::Time::fromSeconds(2);
     };
 
     struct ImageConfig {

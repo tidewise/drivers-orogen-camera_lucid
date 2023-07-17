@@ -3,6 +3,7 @@
 #include "Task.hpp"
 #include "base/samples/Frame.hpp"
 #include <base-logging/Logging.hpp>
+#include <thread>
 
 using namespace std;
 using namespace camera_lucid;
@@ -139,8 +140,18 @@ bool Task::startHook()
         return false;
     }
 
-    LOG_INFO_S << "Starting frame acquisition.";
     try {
+        LOG_INFO_S << "Checking MTU.";
+        auto transmission_config = _transmission_config.get();
+        if (!checkMtu(*m_device, transmission_config.mtu_threshold)) {
+            throw runtime_error(
+                "MTU negotiated is less than expected! Expected: " +
+                to_string(transmission_config.mtu_threshold) + " current: " +
+                to_string(Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(),
+                    "DeviceStreamChannelPacketSize")));
+        }
+
+        LOG_INFO_S << "Starting frame acquisition.";
         m_device->StartStream();
     }
     catch (GenICam::GenericException& ge) {
@@ -270,6 +281,23 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
 {
     LOG_INFO_S << "Configuring camera.";
 
+    LOG_INFO_S << "Setting StreamBufferHandlingMode.";
+    Arena::SetNodeValue<GenICam::gcstring>(device.GetTLStreamNodeMap(),
+        "StreamBufferHandlingMode",
+        "NewestOnly");
+
+    // Use max supported packet size. We use transfer control to ensure that only one
+    // camera is transmitting at a time.
+    LOG_INFO_S << "Setting StreamAutoNegotiatePacketSize.";
+    Arena::SetNodeValue<bool>(device.GetTLStreamNodeMap(),
+        "StreamAutoNegotiatePacketSize",
+        true);
+
+    LOG_INFO_S << "Setting StreamPacketResendEnable.";
+    Arena::SetNodeValue<bool>(device.GetTLStreamNodeMap(),
+        "StreamPacketResendEnable",
+        true);
+
     LOG_INFO_S << "Setting PixelFormat.";
     Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
         "PixelFormat",
@@ -293,6 +321,21 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
     exposureConfiguration(device);
     analogConfiguration(device);
     infoConfiguration(device);
+
+    auto transmission_config = _transmission_config.get();
+    auto current_time = base::Time::now();
+    auto deadline = current_time + transmission_config.mtu_check_timeout;
+    while (!checkMtu(device, transmission_config.mtu_threshold)) {
+        if (base::Time::now() > deadline) {
+            throw runtime_error(
+                "MTU negotiated is less than expected! Expected: " +
+                to_string(transmission_config.mtu_threshold) + " current: " +
+                to_string(Arena::GetNodeValue<int64_t>(device.GetNodeMap(),
+                    "DeviceStreamChannelPacketSize")));
+        }
+        std::this_thread::sleep_for(static_cast<chrono::duration<int, std::milli>>(
+            transmission_config.mtu_check_sleep.toMilliseconds()));
+    }
 
     Frame* frame = new Frame(_image_config.get().width,
         _image_config.get().height,
@@ -470,32 +513,6 @@ void Task::transmissionConfiguration(Arena::IDevice& device)
 {
     auto config = _transmission_config.get();
 
-    LOG_INFO_S << "Setting StreamBufferHandlingMode.";
-    Arena::SetNodeValue<GenICam::gcstring>(device.GetTLStreamNodeMap(),
-        "StreamBufferHandlingMode",
-        "NewestOnly");
-
-    // Use max supported packet size. We use transfer control to ensure that only one
-    // camera is transmitting at a time.
-    LOG_INFO_S << "Setting StreamAutoNegotiatePacketSize.";
-    Arena::SetNodeValue<bool>(device.GetTLStreamNodeMap(),
-        "StreamAutoNegotiatePacketSize",
-        true);
-
-    GenApi::CIntegerPtr mtu =
-        device.GetNodeMap()->GetNode("DeviceStreamChannelPacketSize");
-
-    if (config.mtu_threshold > mtu->GetValue()) {
-        throw runtime_error("MTU negotiated is less than expected! Expected: " +
-                            to_string(config.mtu_threshold) +
-                            " current: " + to_string(mtu->GetValue()));
-    }
-
-    LOG_INFO_S << "Setting StreamPacketResendEnable.";
-    Arena::SetNodeValue<bool>(device.GetTLStreamNodeMap(),
-        "StreamPacketResendEnable",
-        true);
-
     GenApi::CIntegerPtr stream_channel_packet_delay =
         device.GetNodeMap()->GetNode("GevSCPD");
     stream_channel_packet_delay->SetValue(config.packet_delay);
@@ -518,6 +535,12 @@ void Task::transmissionConfiguration(Arena::IDevice& device)
             "TransferControlMode",
             "Automatic");
     }
+}
+
+bool Task::checkMtu(Arena::IDevice& device, int64_t mtu)
+{
+    return (Arena::GetNodeValue<int64_t>(device.GetNodeMap(),
+                "DeviceStreamChannelPacketSize") >= mtu);
 }
 
 void Task::binningConfiguration(Arena::IDevice& device)
