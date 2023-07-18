@@ -150,6 +150,8 @@ namespace camera_lucid {
     };
 
     struct TransmissionConfig {
+        /** Whether the Arena software requires a packet resend*/
+        bool stream_packet_resend = true;
         /** Whether the camera controls data transfer (false), or the component (true) */
         bool explicit_data_transfer = false;
         /** Delay between two packets sent by the camera in nanoseconds
@@ -176,7 +178,7 @@ namespace camera_lucid {
          * the desired mtu is configured or if timeouts.*/
         base::Time mtu_check_sleep = base::Time::fromMilliseconds(500);
         /** Timeout for negotiating mtu.*/
-        base::Time mtu_check_timeout = base::Time::fromSeconds(2);
+        base::Time mtu_check_timeout = base::Time::fromSeconds(10);
     };
 
     struct ImageConfig {

@@ -296,7 +296,7 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
     LOG_INFO_S << "Setting StreamPacketResendEnable.";
     Arena::SetNodeValue<bool>(device.GetTLStreamNodeMap(),
         "StreamPacketResendEnable",
-        true);
+        _transmission_config.get().stream_packet_resend);
 
     LOG_INFO_S << "Setting PixelFormat.";
     Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
