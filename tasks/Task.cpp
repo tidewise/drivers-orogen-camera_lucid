@@ -3,6 +3,7 @@
 #include "Task.hpp"
 #include "base/samples/Frame.hpp"
 #include <base-logging/Logging.hpp>
+#include <thread>
 
 using namespace std;
 using namespace camera_lucid;
@@ -139,8 +140,18 @@ bool Task::startHook()
         return false;
     }
 
-    LOG_INFO_S << "Starting frame acquisition.";
     try {
+        LOG_INFO_S << "Checking MTU.";
+        auto transmission_config = _transmission_config.get();
+        if (!checkMtu(*m_device, transmission_config.mtu_threshold)) {
+            throw runtime_error(
+                "MTU negotiated is less than expected! Expected: " +
+                to_string(transmission_config.mtu_threshold) + " current: " +
+                to_string(Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(),
+                    "DeviceStreamChannelPacketSize")));
+        }
+
+        LOG_INFO_S << "Starting frame acquisition.";
         m_device->StartStream();
     }
     catch (GenICam::GenericException& ge) {
@@ -285,7 +296,7 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
     LOG_INFO_S << "Setting StreamPacketResendEnable.";
     Arena::SetNodeValue<bool>(device.GetTLStreamNodeMap(),
         "StreamPacketResendEnable",
-        true);
+        _transmission_config.get().stream_packet_resend);
 
     LOG_INFO_S << "Setting PixelFormat.";
     Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
@@ -310,6 +321,21 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
     exposureConfiguration(device);
     analogConfiguration(device);
     infoConfiguration(device);
+
+    auto transmission_config = _transmission_config.get();
+    auto current_time = base::Time::now();
+    auto deadline = current_time + transmission_config.mtu_check_timeout;
+    while (!checkMtu(device, transmission_config.mtu_threshold)) {
+        if (base::Time::now() > deadline) {
+            throw runtime_error(
+                "MTU negotiated is less than expected! Expected: " +
+                to_string(transmission_config.mtu_threshold) + " current: " +
+                to_string(Arena::GetNodeValue<int64_t>(device.GetNodeMap(),
+                    "DeviceStreamChannelPacketSize")));
+        }
+        std::this_thread::sleep_for(static_cast<chrono::duration<int, std::milli>>(
+            transmission_config.mtu_check_sleep.toMilliseconds()));
+    }
 
     Frame* frame = new Frame(_image_config.get().width,
         _image_config.get().height,
@@ -509,6 +535,12 @@ void Task::transmissionConfiguration(Arena::IDevice& device)
             "TransferControlMode",
             "Automatic");
     }
+}
+
+bool Task::checkMtu(Arena::IDevice& device, int64_t mtu)
+{
+    return (Arena::GetNodeValue<int64_t>(device.GetNodeMap(),
+                "DeviceStreamChannelPacketSize") >= mtu);
 }
 
 void Task::binningConfiguration(Arena::IDevice& device)
@@ -775,7 +807,7 @@ void Task::exposureConfiguration(Arena::IDevice& device)
 
     /** Target brightness configuration:
      *  - Sets target brightness value
-     *  - Note: 70 is the optimal target brightness value for outdoor 
+     *  - Note: 70 is the optimal target brightness value for outdoor
      *  usage, as stated in the camera's manual. */
     LOG_INFO_S << "Setting device's target brightness to "
                << image_config.target_brightness;
@@ -901,7 +933,7 @@ void Task::analogConfiguration(Arena::IDevice& device)
      *  - Sets Gamma mode (Enabled or Disabled).
      *  - Gets the initial Gamma value (1 is the Default)
      *  and changes it.
-     *  - Note: 0.5 the Optimal Gamma Value for outdoor 
+     *  - Note: 0.5 the Optimal Gamma Value for outdoor
      *  usage as stated on the camera's manual. */
     LOG_INFO_S << "Setting Gamma Mode";
     Arena::SetNodeValue<bool>(device.GetNodeMap(),

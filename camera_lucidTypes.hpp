@@ -150,6 +150,8 @@ namespace camera_lucid {
     };
 
     struct TransmissionConfig {
+        /** Whether the Arena software requires a packet resend*/
+        bool stream_packet_resend = true;
         /** Whether the camera controls data transfer (false), or the component (true) */
         bool explicit_data_transfer = false;
         /** Delay between two packets sent by the camera in nanoseconds
@@ -166,6 +168,17 @@ namespace camera_lucid {
          * using PTPSync)
          */
         uint64_t frame_transmission_delay = 0;
+
+        /** Configures the MTU. Lucid Arena SDK negotiates automatically the packet size.
+         * However, we have this param to ensure the minimum acceptable value. If the MTU
+         * value is bellow this threshold an exception is thrown.*/
+        int mtu_threshold = 1500;
+
+        /** Sleep while checking mtu value. The configurable task will be in a  loop until
+         * the desired mtu is configured or if timeouts.*/
+        base::Time mtu_check_sleep = base::Time::fromMilliseconds(500);
+        /** Timeout for negotiating mtu.*/
+        base::Time mtu_check_timeout = base::Time::fromSeconds(10);
     };
 
     struct ImageConfig {
