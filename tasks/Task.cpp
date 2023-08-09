@@ -143,10 +143,10 @@ bool Task::startHook()
     try {
         LOG_INFO_S << "Checking MTU.";
         auto transmission_config = _transmission_config.get();
-        if (!checkMtu(*m_device, transmission_config.mtu_threshold)) {
+        if (!checkMtu(*m_device, transmission_config.mtu)) {
             throw runtime_error(
-                "MTU negotiated is less than expected! Expected: " +
-                to_string(transmission_config.mtu_threshold) + " current: " +
+                "MTU is less than expected! Expected: " +
+                to_string(transmission_config.mtu) + " current: " +
                 to_string(Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(),
                     "DeviceStreamChannelPacketSize")));
         }
@@ -286,12 +286,23 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
         "StreamBufferHandlingMode",
         "NewestOnly");
 
-    // Use max supported packet size. We use transfer control to ensure that only one
-    // camera is transmitting at a time.
-    LOG_INFO_S << "Setting StreamAutoNegotiatePacketSize.";
-    Arena::SetNodeValue<bool>(device.GetTLStreamNodeMap(),
-        "StreamAutoNegotiatePacketSize",
-        true);
+    auto transmission_config = _transmission_config.get();
+    if (transmission_config.auto_negotiate_mtu) {
+        // Use max supported packet size. We use transfer control to ensure that only one
+        // camera is transmitting at a time.
+        LOG_INFO_S << "Setting StreamAutoNegotiatePacketSize.";
+        Arena::SetNodeValue<bool>(device.GetTLStreamNodeMap(),
+            "StreamAutoNegotiatePacketSize",
+            true);
+    }
+    else {
+        Arena::SetNodeValue<bool>(device.GetTLStreamNodeMap(),
+            "StreamAutoNegotiatePacketSize",
+            false);
+        Arena::SetNodeValue<int64_t>(device.GetNodeMap(),
+            "DeviceStreamChannelPacketSize",
+            transmission_config.mtu);
+    }
 
     LOG_INFO_S << "Setting StreamPacketResendEnable.";
     Arena::SetNodeValue<bool>(device.GetTLStreamNodeMap(),
@@ -322,14 +333,13 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
     analogConfiguration(device);
     infoConfiguration(device);
 
-    auto transmission_config = _transmission_config.get();
     auto current_time = base::Time::now();
     auto deadline = current_time + transmission_config.mtu_check_timeout;
-    while (!checkMtu(device, transmission_config.mtu_threshold)) {
+    while (!checkMtu(device, transmission_config.mtu)) {
         if (base::Time::now() > deadline) {
             throw runtime_error(
-                "MTU negotiated is less than expected! Expected: " +
-                to_string(transmission_config.mtu_threshold) + " current: " +
+                "MTU is less than expected! Expected: " +
+                to_string(transmission_config.mtu) + " current: " +
                 to_string(Arena::GetNodeValue<int64_t>(device.GetNodeMap(),
                     "DeviceStreamChannelPacketSize")));
         }

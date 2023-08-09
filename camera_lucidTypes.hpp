@@ -170,9 +170,15 @@ namespace camera_lucid {
         uint64_t frame_transmission_delay = 0;
 
         /** Configures the MTU. Lucid Arena SDK negotiates automatically the packet size.
-         * However, we have this param to ensure the minimum acceptable value. If the MTU
-         * value is bellow this threshold an exception is thrown.*/
-        int mtu_threshold = 1500;
+         * If true, the mtu negotiation will be done automatically and it will be checked
+         * if the negotiated mtu is greater or equal than the desired mtu.
+         * If false, the mtu will be set as desired mtu.*/
+        bool auto_negotiate_mtu = false;
+
+        /** Desired mtu
+         * If the camera's mtu value is bellow this value, after the timeout an exception
+         * is thrown.*/
+        int mtu = 1500;
 
         /** Sleep while checking mtu value. The configurable task will be in a  loop until
          * the desired mtu is configured or if timeouts.*/
