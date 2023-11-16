@@ -126,7 +126,7 @@ argument.
         void acquisitionConfiguration(Arena::IDevice& device);
         void binningConfiguration(Arena::IDevice& device);
         void decimationConfiguration(Arena::IDevice& device);
-        void dimensionsConfiguration(Arena::IDevice& device);
+        void imageFormatConfiguration(Arena::IDevice& device);
         void exposureConfiguration(Arena::IDevice& device);
         void infoConfiguration(Arena::IDevice& device);
         void analogConfiguration(Arena::IDevice& device);
