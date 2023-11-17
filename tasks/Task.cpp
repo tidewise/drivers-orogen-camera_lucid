@@ -328,7 +328,7 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
     acquisitionConfiguration(device);
     binningConfiguration(device);
     decimationConfiguration(device);
-    dimensionsConfiguration(device);
+    imageFormatConfiguration(device);
     exposureConfiguration(device);
     analogConfiguration(device);
     infoConfiguration(device);
@@ -711,7 +711,7 @@ void Task::decimationConfiguration(Arena::IDevice& device)
     }
 }
 
-void Task::dimensionsConfiguration(Arena::IDevice& device)
+void Task::imageFormatConfiguration(Arena::IDevice& device)
 {
     LOG_INFO_S << "Setting Dimensions.";
     GenApi::CIntegerPtr width = device.GetNodeMap()->GetNode("Width");
@@ -754,6 +754,16 @@ void Task::dimensionsConfiguration(Arena::IDevice& device)
             Arena::GetNodeValue<int64_t>(device.GetNodeMap(), "OffsetY")) {
         throw runtime_error("Width/Heigth/Offset not properly configured.");
     }
+
+    LOG_INFO_S << "Setting Horizontal Flip";
+    Arena::SetNodeValue<bool>(device.GetNodeMap(),
+        "ReverseX",
+        _image_config.get().horizontal_flip);
+
+    LOG_INFO_S << "Setting Horizontal Flip";
+    Arena::SetNodeValue<bool>(device.GetNodeMap(),
+        "ReverseY",
+        _image_config.get().vertical_flip);
 }
 
 void Task::exposureConfiguration(Arena::IDevice& device)
