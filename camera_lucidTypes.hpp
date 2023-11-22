@@ -230,14 +230,6 @@ namespace camera_lucid {
         /** Default pixel value the camera will try to reach automatically.
          * For uncontrolled outdoor environments, the recommended value is 70. */
         uint8_t target_brightness = 70;
-        /** Horizontal Flip
-         * The flip action occurs on the camera before transmitting the image to the host.
-         */
-        bool horizontal_flip = false;
-        /** Vertical Flip
-         * The flip action occurs on the camera before transmitting the image to the host.
-         */
-        bool vertical_flip = false;
     };
 
     struct CameraConfig {
