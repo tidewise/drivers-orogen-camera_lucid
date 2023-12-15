@@ -359,6 +359,7 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
 void Task::acquireFrame()
 {
     RequeueImageFrame frame;
+    base::Time received_time;
     try {
         if (_transmission_config.get().explicit_data_transfer) {
             Arena::ExecuteNode(m_device->GetNodeMap(), "TransferStart");
@@ -366,6 +367,7 @@ void Task::acquireFrame()
         frame.reset(
             m_device->GetImage(_image_config.get().frame_timeout.toMilliseconds()),
             m_device);
+        received_time = base::Time::now();
         if (_transmission_config.get().explicit_data_transfer) {
             Arena::ExecuteNode(m_device->GetNodeMap(), "TransferStop");
         }
@@ -403,9 +405,8 @@ void Task::acquireFrame()
         format != out_frame->getFrameMode()) {
         out_frame->init(width, height, data_depth, format, 0, size);
     }
-    out_frame->time = base::Time::now();
-    out_frame->received_time = out_frame->time;
-
+    out_frame->time = received_time;
+    out_frame->received_time = received_time;
     out_frame->setImage(frame.image->GetData(), size);
     out_frame->setStatus(STATUS_VALID);
     m_frame.reset(out_frame);
