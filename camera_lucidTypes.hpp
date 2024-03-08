@@ -77,6 +77,15 @@ namespace camera_lucid {
     };
     static std::vector<std::string> gain_auto_name = {"Off", "Once", "Continuous"};
 
+    enum BalanceRatioSelector {
+        BALANCE_RATIO_SELECTOR_RED = 0,
+        BALANCE_RATIO_SELECTOR_GREEN = 1,
+        BALANCE_RATIO_SELECTOR_BLUE = 2
+    };
+    static std::vector<std::string> balance_ratio_selector_name = {"Red",
+        "Green",
+        "Blue"};
+
     enum BalanceWhiteAuto {
         BALANCE_WHITE_AUTO_OFF = 0,
         BALANCE_WHITE_AUTO_ONCE = 1,
@@ -162,6 +171,10 @@ namespace camera_lucid {
         float gamma = 0.5;
         /** Balance White Enable - Enables the White Balance */
         bool balance_white_enable = true;
+        /** Balance Ratio Selector - Selects which balance ratio is controlled by
+         *  various balance ratio features.*/
+        BalanceRatioSelector balance_ratio_selector =
+            BalanceRatioSelector::BALANCE_RATIO_SELECTOR_RED;
         /** Balance White Auto - Controls the mode for automatic white balancing
          *  between color channels.*/
         BalanceWhiteAuto balance_white_auto =
