@@ -973,7 +973,32 @@ void Task::analogConfiguration(Arena::IDevice& device)
     value->SetValue(_analog_controller_config.get().gamma);
 }
 
-void Task::balanceConfiguration(Arena::IDevice& device) {
+void Task::balanceConfiguration(Arena::IDevice& device)
+{
+    /** Balance Ratio Selector - Selects which balance ratio is controlled by
+     * various Balance Ratio Features.*/
+
+    LOG_INFO_S << "Setting Balance Ratio Selector to ."
+               << getEnumName(_analog_controller_config.get().balance_ratio_selector,
+                      balance_ratio_selector_name);
+    Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
+        "BalanceRatioSelector",
+        getEnumName(_analog_controller_config.get().balance_ratio_selector,
+            balance_ratio_selector_name));
+
+    GenApi::CEnumerationPtr balance_selector =
+        device.GetNodeMap()->GetNode("BalanceRatioSelector");
+
+    auto current = balance_selector->GetCurrentEntry()->GetSymbolic();
+    if (current != getEnumName(_analog_controller_config.get().balance_ratio_selector,
+                       balance_ratio_selector_name)) {
+        LOG_WARN_S << "BalanceRatioSelector value differs from expected: "
+                   << getEnumName(_analog_controller_config.get().balance_ratio_selector,
+                          balance_ratio_selector_name)
+                   << " current: " << current;
+        throw runtime_error("BalanceWhiteAuto value differs.");
+    }
+
     /** White Balance Configuration:
      *  - Sets WhiteBalance mode (Enabled or Disabled).
      *  - Controls the balance white auto mode if it's enabled
@@ -991,11 +1016,11 @@ void Task::balanceConfiguration(Arena::IDevice& device) {
         device.GetNodeMap()->GetNode("BalanceWhiteEnable");
     bool current_bool = white_balance_enabled->GetValue();
     if (current_bool != _analog_controller_config.get().balance_white_enable) {
-            LOG_WARN_S << "BalanceWhiteAuto value differs from expected: "
-                       << _analog_controller_config.get().balance_white_enable
-                       << " current: " << current_bool;
-            throw runtime_error("BalanceWhiteAuto value differs.");
-        }
+        LOG_WARN_S << "BalanceWhiteAuto value differs from expected: "
+                   << _analog_controller_config.get().balance_white_enable
+                   << " current: " << current_bool;
+        throw runtime_error("BalanceWhiteAuto value differs.");
+    }
 
     if (_analog_controller_config.get().balance_white_enable == true) {
         LOG_INFO_S << "Setting Balance White Auto to ."
@@ -1009,7 +1034,7 @@ void Task::balanceConfiguration(Arena::IDevice& device) {
         GenApi::CEnumerationPtr balance_auto =
             device.GetNodeMap()->GetNode("BalanceWhiteAuto");
 
-        auto current = balance_auto->GetCurrentEntry()->GetSymbolic();
+        current = balance_auto->GetCurrentEntry()->GetSymbolic();
         if (current != getEnumName(_analog_controller_config.get().balance_white_auto,
                            balance_white_auto_name)) {
             LOG_WARN_S << "BalanceWhiteAuto value differs from expected: "
@@ -1118,8 +1143,8 @@ void Task::collectInfo()
                               device_temperature_selector_name);
             info_message.temperature = info_message.temperature.fromCelsius(
                 Arena::GetNodeValue<double>(m_device->GetNodeMap(), "DeviceTemperature"));
-            info_message.mean_exposure =
-                Arena::GetNodeValue<double>(m_device->GetNodeMap(), "CalculatedMean");
+            info_message.average_exposure =
+                Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(), "CalculatedMean");
             info_message.acquisition_timeouts = m_acquisition_timeouts_sum;
             info_message.incomplete_images = m_incomplete_images_sum;
         }

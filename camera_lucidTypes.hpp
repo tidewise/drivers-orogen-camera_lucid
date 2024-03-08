@@ -176,7 +176,7 @@ namespace camera_lucid {
         BalanceRatioSelector balance_ratio_selector =
             BalanceRatioSelector::BALANCE_RATIO_SELECTOR_RED;
         /** Balance Ratio - Controls the selected balance ratio as an absolute physical
-         * value */
+         * value. This is an amplification factor applied to the video signal.*/
         float balance_ratio = 1.0684;
         /** Balance White Auto - Controls the mode for automatic white balancing
          *  between color channels.*/
@@ -312,7 +312,7 @@ namespace camera_lucid {
         /** Number of incomplete images since start*/
         uint64_t incomplete_images = 0;
         /** Mean exposure time*/
-        uint16_t mean_exposure; // the pattern may be different (unit64_t)
+        uint64_t average_exposure;
     };
 }
 
