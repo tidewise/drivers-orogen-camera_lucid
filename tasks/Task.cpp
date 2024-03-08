@@ -331,6 +331,7 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
     dimensionsConfiguration(device);
     exposureConfiguration(device);
     analogConfiguration(device);
+    balanceConfiguration(device);
     infoConfiguration(device);
 
     auto current_time = base::Time::now();
@@ -958,8 +959,7 @@ void Task::analogConfiguration(Arena::IDevice& device)
 
     /** Gamma configuration:
      *  - Sets Gamma mode (Enabled or Disabled).
-     *  - Gets the initial Gamma value (1 is the Default)
-     *  and changes it.
+     *  - Gets the initial Gamma value (1 is the Default) and changes it.
      *  - Note: 0.5 the Optimal Gamma Value for outdoor
      *  usage as stated on the camera's manual. */
     LOG_INFO_S << "Setting Gamma Mode";
@@ -971,6 +971,86 @@ void Task::analogConfiguration(Arena::IDevice& device)
 
     LOG_INFO_S << "Setting Gamma Values";
     value->SetValue(_analog_controller_config.get().gamma);
+}
+
+void Task::balanceConfiguration(Arena::IDevice& device) {
+    /** White Balance Configuration:
+     *  - Sets WhiteBalance mode (Enabled or Disabled).
+     *  - Controls the balance white auto mode if it's enabled
+     *  - Controls the type of statistics used for balance white auto */
+
+    LOG_INFO_S << "Setting Balance White Auto to ."
+               << getEnumName(_analog_controller_config.get().balance_white_auto,
+                      balance_white_auto_name);
+
+    Arena::SetNodeValue<bool>(device.GetNodeMap(),
+        "BalanceWhiteEnable",
+        _analog_controller_config.get().balance_white_enable);
+
+    GenApi::CBooleanPtr white_balance_enabled =
+        device.GetNodeMap()->GetNode("BalanceWhiteEnable");
+    bool current_bool = white_balance_enabled->GetValue();
+    if (current_bool != _analog_controller_config.get().balance_white_enable) {
+            LOG_WARN_S << "BalanceWhiteAuto value differs from expected: "
+                       << _analog_controller_config.get().balance_white_enable
+                       << " current: " << current_bool;
+            throw runtime_error("BalanceWhiteAuto value differs.");
+        }
+
+    if (_analog_controller_config.get().balance_white_enable == true) {
+        LOG_INFO_S << "Setting Balance White Auto to ."
+                   << getEnumName(_analog_controller_config.get().balance_white_auto,
+                          balance_white_auto_name);
+        Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
+            "BalanceWhiteAuto",
+            getEnumName(_analog_controller_config.get().balance_white_auto,
+                balance_white_auto_name));
+
+        GenApi::CEnumerationPtr balance_auto =
+            device.GetNodeMap()->GetNode("BalanceWhiteAuto");
+
+        auto current = balance_auto->GetCurrentEntry()->GetSymbolic();
+        if (current != getEnumName(_analog_controller_config.get().balance_white_auto,
+                           balance_white_auto_name)) {
+            LOG_WARN_S << "BalanceWhiteAuto value differs from expected: "
+                       << getEnumName(_analog_controller_config.get().balance_white_auto,
+                              balance_white_auto_name)
+                       << " current: " << current;
+            throw runtime_error("BalanceWhiteAuto value differs.");
+        }
+
+        if (_analog_controller_config.get().balance_white_auto ==
+                BalanceWhiteAuto::BALANCE_WHITE_AUTO_CONTINUOUS ||
+            _analog_controller_config.get().balance_white_auto ==
+                BalanceWhiteAuto::BALANCE_WHITE_AUTO_ONCE) {
+
+            LOG_INFO_S << "Setting Balance White Auto Anchor Selector to ."
+                       << getEnumName(_analog_controller_config.get()
+                                          .balance_white_auto_anchor_selector,
+                              balance_white_auto_anchor_selector_name);
+            Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
+                "BalanceWhiteAutoAnchorSelector",
+                getEnumName(
+                    _analog_controller_config.get().balance_white_auto_anchor_selector,
+                    balance_white_auto_anchor_selector_name));
+
+            GenApi::CEnumerationPtr anchor_selector =
+                device.GetNodeMap()->GetNode("BalanceWhiteAutoAnchorSelector");
+
+            current = anchor_selector->GetCurrentEntry()->GetSymbolic();
+            if (current !=
+                getEnumName(
+                    _analog_controller_config.get().balance_white_auto_anchor_selector,
+                    balance_white_auto_anchor_selector_name)) {
+                LOG_WARN_S << "BalanceWhiteAuto value differs from expected: "
+                           << getEnumName(_analog_controller_config.get()
+                                              .balance_white_auto_anchor_selector,
+                                  balance_white_auto_anchor_selector_name)
+                           << " current: " << current;
+                throw runtime_error("BalanceWhiteAutoAnchorSelector value differs.");
+            }
+        }
+    }
 }
 
 void Task::factoryReset(Arena::IDevice* device, System& system)

@@ -130,6 +130,7 @@ argument.
         void exposureConfiguration(Arena::IDevice& device);
         void infoConfiguration(Arena::IDevice& device);
         void analogConfiguration(Arena::IDevice& device);
+        void balanceConfiguration(Arena::IDevice& device);
         void transmissionConfiguration(Arena::IDevice& device);
         bool checkMtu(Arena::IDevice& device, int64_t mtu);
 

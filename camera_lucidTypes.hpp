@@ -77,6 +77,27 @@ namespace camera_lucid {
     };
     static std::vector<std::string> gain_auto_name = {"Off", "Once", "Continuous"};
 
+    enum BalanceWhiteAuto {
+        BALANCE_WHITE_AUTO_OFF = 0,
+        BALANCE_WHITE_AUTO_ONCE = 1,
+        BALANCE_WHITE_AUTO_CONTINUOUS = 2
+    };
+    static std::vector<std::string> balance_white_auto_name = {"Off",
+        "Once",
+        "Continuous"};
+
+    enum BalanceWhiteAutoAnchorSelector { // This RGB seems strange.. idk, need to check
+                                          // it later.
+        BALANCE_WHITE_AUTO_ANCHOR_SELECTOR_MINRGB = 0,
+        BALANCE_WHITE_AUTO_ANCHOR_SELECTOR_MAXRGB = 1,
+        BALANCE_WHITE_AUTO_ANCHOR_SELECTOR_MEANRGB = 2,
+        BALANCE_WHITE_AUTO_ANCHOR_SELECTOR_GREEN = 3
+    };
+    static std::vector<std::string> balance_white_auto_anchor_selector_name = {"MinRGB",
+        "MaxRGB",
+        "MeanRGB",
+        "Green"};
+
     enum AcquisitionStartMode {
         ACQUISITION_START_MODE_NORMAL = 0,
         ACQUISITION_START_MODE_LOWLATENCY = 1,
@@ -139,6 +160,16 @@ namespace camera_lucid {
         /** Gamma correction configuration - For uncontrolled outdoor environments,
          * The recommended gamma value is 0.5. */
         float gamma = 0.5;
+        /** Balance White Enable - Enables the White Balance */
+        bool balance_white_enable = true;
+        /** Balance White Auto - Controls the mode for automatic white balancing
+         *  between color channels.*/
+        BalanceWhiteAuto balance_white_auto =
+            BalanceWhiteAuto::BALANCE_WHITE_AUTO_CONTINUOUS;
+        /** Balance White Auto Anchor Selector - Controls which type of statistics
+         *  are used for BalanceWhiteAuto.*/
+        BalanceWhiteAutoAnchorSelector balance_white_auto_anchor_selector =
+            BalanceWhiteAutoAnchorSelector::BALANCE_WHITE_AUTO_ANCHOR_SELECTOR_MEANRGB;
     };
 
     struct PTPConfig {
