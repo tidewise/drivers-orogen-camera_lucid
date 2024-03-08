@@ -45,6 +45,12 @@ namespace camera_lucid {
     };
     static std::vector<std::string> exposure_auto_name = {"Off", "Once", "Continuous"};
 
+    enum ExposureAutoAlgorithm {
+        EXPOSURE_AUTO_ALGORITHM_MEDIAN = 0,
+        EXPOSURE_AUTO_ALGORITHM_MEAN = 1
+    };
+    static std::vector<std::string> exposure_auto_algorithm = {"Median", "Mean"};
+
     enum ExposureAutoLimitAuto {
         EXPOSURE_AUTO_LIMIT_AUTO_OFF = 0,
         EXPOSURE_AUTO_LIMIT_AUTO_CONTINUOUS = 1
@@ -211,6 +217,11 @@ namespace camera_lucid {
         uint8_t depth = 8;
         /** Sets the automatic exposure mode.*/
         ExposureAuto exposure_auto = EXPOSURE_AUTO_CONTINUOUS;
+        /** Sets the automatic exposure algorithm*/
+        ExposureAutoAlgorithm exposure_auto_algorithm = EXPOSURE_AUTO_ALGORITHM_MEAN;
+        /** Sets the automatic exposure damping represented as %.
+         * Maximum, Minimum: 99.6094, 0.390625 */
+        double exposure_auto_damping = 89.8438;
         /** Sets the exposure auto limit auto exposure mode*/
         ExposureAutoLimitAuto exposure_auto_limit_auto = EXPOSURE_AUTO_LIMIT_AUTO_OFF;
         /** Controls the device exposure time.*/
@@ -253,6 +264,8 @@ namespace camera_lucid {
         uint64_t acquisition_timeouts = 0;
         /** Number of incomplete images since start*/
         uint64_t incomplete_images = 0;
+        /** Mean exposure time*/
+        uint16_t mean_exposure; // the pattern may be different (unit64_t)
     };
 }
 

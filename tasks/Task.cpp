@@ -782,6 +782,22 @@ void Task::exposureConfiguration(Arena::IDevice& device)
             getEnumName(image_config.exposure_auto_limit_auto,
                 exposure_auto_limit_auto_name));
 
+        LOG_INFO_S << "Setting auto exposure algorithm to"
+                   << getEnumName(image_config.exposure_auto_algorithm,
+                          exposure_auto_algorithm);
+
+        Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
+            "ExposureAutoAlgorithm",
+            getEnumName(image_config.exposure_auto_algorithm, exposure_auto_algorithm));
+
+        LOG_INFO_S << "Setting device's target brightness to "
+                   << image_config.exposure_auto_damping;
+
+        GenApi::CIntegerPtr exposureAutoDamping =
+            device.GetNodeMap()->GetNode("ExposureAutoDamping");
+
+        exposureAutoDamping->SetValue(image_config.exposure_auto_damping);
+
         if (image_config.exposure_auto_limit_auto ==
             ExposureAutoLimitAuto::EXPOSURE_AUTO_LIMIT_AUTO_OFF) {
             LOG_INFO_S << "Setting exposure time lower and upper limit";
@@ -1022,6 +1038,8 @@ void Task::collectInfo()
                               device_temperature_selector_name);
             info_message.temperature = info_message.temperature.fromCelsius(
                 Arena::GetNodeValue<double>(m_device->GetNodeMap(), "DeviceTemperature"));
+            info_message.mean_exposure =
+                Arena::GetNodeValue<double>(m_device->GetNodeMap(), "CalculatedMean");
             info_message.acquisition_timeouts = m_acquisition_timeouts_sum;
             info_message.incomplete_images = m_incomplete_images_sum;
         }
