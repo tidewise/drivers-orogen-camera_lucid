@@ -785,11 +785,25 @@ void Task::exposureConfiguration(Arena::IDevice& device)
 
         LOG_INFO_S << "Setting auto exposure algorithm to"
                    << getEnumName(image_config.exposure_auto_algorithm,
-                          exposure_auto_algorithm);
+                          exposure_auto_algorithm_name);
 
         Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
             "ExposureAutoAlgorithm",
-            getEnumName(image_config.exposure_auto_algorithm, exposure_auto_algorithm));
+            getEnumName(image_config.exposure_auto_algorithm,
+                exposure_auto_algorithm_name));
+
+        GenApi::CEnumerationPtr exposureAutoAlgorithm =
+            device.GetNodeMap()->GetNode("ExposureAutoAlgorithm");
+
+        auto current_algorithm = exposureAutoAlgorithm->GetCurrentEntry()->GetSymbolic();
+        if (current_algorithm != getEnumName(image_config.exposure_auto_algorithm,
+                                     exposure_auto_algorithm_name)) {
+            LOG_WARN_S << "ExposureAutoAlgorithm value differs setpoint: "
+                       << getEnumName(image_config.exposure_auto_algorithm,
+                              exposure_auto_algorithm_name)
+                       << " current: " << current_algorithm;
+            throw runtime_error("ExposureAutoAlgorithm value differs.");
+        }
 
         LOG_INFO_S << "Setting device's exposure auto damping to "
                    << image_config.exposure_auto_damping;

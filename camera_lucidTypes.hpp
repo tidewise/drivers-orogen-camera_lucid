@@ -49,7 +49,7 @@ namespace camera_lucid {
         EXPOSURE_AUTO_ALGORITHM_MEDIAN = 0,
         EXPOSURE_AUTO_ALGORITHM_MEAN = 1
     };
-    static std::vector<std::string> exposure_auto_algorithm = {"Median", "Mean"};
+    static std::vector<std::string> exposure_auto_algorithm_name = {"Median", "Mean"};
 
     enum ExposureAutoLimitAuto {
         EXPOSURE_AUTO_LIMIT_AUTO_OFF = 0,
