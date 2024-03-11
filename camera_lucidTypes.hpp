@@ -85,7 +85,7 @@ namespace camera_lucid {
     static std::vector<std::string> balance_ratio_selector_name = {"Red",
         "Green",
         "Blue"};
-
+    // Despite the fact we should be able to set it to Once, the driver doesn't accept it.
     enum BalanceWhiteAuto {
         BALANCE_WHITE_AUTO_OFF = 0,
         BALANCE_WHITE_AUTO_ONCE = 1,
