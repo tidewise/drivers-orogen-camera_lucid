@@ -95,8 +95,7 @@ namespace camera_lucid {
         "Once",
         "Continuous"};
 
-    enum BalanceWhiteAutoAnchorSelector { // This RGB seems strange.. idk, need to check
-                                          // it later.
+    enum BalanceWhiteAutoAnchorSelector {
         BALANCE_WHITE_AUTO_ANCHOR_SELECTOR_MINRGB = 0,
         BALANCE_WHITE_AUTO_ANCHOR_SELECTOR_MAXRGB = 1,
         BALANCE_WHITE_AUTO_ANCHOR_SELECTOR_MEANRGB = 2,
@@ -262,6 +261,8 @@ namespace camera_lucid {
             base::samples::frame::frame_mode_t::MODE_BAYER_RGGB;
         /** Depth*/
         uint8_t depth = 8;
+        /** Short Exposure State*/
+        bool short_exposure_enable = false;
         /** Sets the automatic exposure mode.*/
         ExposureAuto exposure_auto = EXPOSURE_AUTO_CONTINUOUS;
         /** Sets the automatic exposure algorithm*/

@@ -777,6 +777,11 @@ void Task::exposureConfiguration(Arena::IDevice& device)
      *  - Checks if exposure auto is off
      *      - Sets fixed exposure time
      * */
+    LOG_INFO_S << "Setting Short Exposure State";
+    Arena::SetNodeValue<bool>(device.GetNodeMap(),
+        "ShortExposureEnable",
+        image_config.short_exposure_enable);
+
     if (image_config.exposure_auto == ExposureAuto::EXPOSURE_AUTO_CONTINUOUS) {
         Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
             "ExposureAutoLimitAuto",
@@ -813,8 +818,9 @@ void Task::exposureConfiguration(Arena::IDevice& device)
 
         exposureAutoDamping->SetValue(image_config.exposure_auto_damping);
 
-        if (image_config.exposure_auto_limit_auto ==
-            ExposureAutoLimitAuto::EXPOSURE_AUTO_LIMIT_AUTO_OFF) {
+        if ((image_config.exposure_auto_limit_auto ==
+            ExposureAutoLimitAuto::EXPOSURE_AUTO_LIMIT_AUTO_OFF) && 
+             (image_config.short_exposure_enable == false)) {
             LOG_INFO_S << "Setting exposure time lower and upper limit";
 
             GenApi::CFloatPtr lowerLimit =
