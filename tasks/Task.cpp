@@ -791,10 +791,10 @@ void Task::exposureConfiguration(Arena::IDevice& device)
             "ExposureAutoAlgorithm",
             getEnumName(image_config.exposure_auto_algorithm, exposure_auto_algorithm));
 
-        LOG_INFO_S << "Setting device's target brightness to "
+        LOG_INFO_S << "Setting device's exposure auto damping to "
                    << image_config.exposure_auto_damping;
 
-        GenApi::CIntegerPtr exposureAutoDamping =
+        GenApi::CFloatPtr exposureAutoDamping =
             device.GetNodeMap()->GetNode("ExposureAutoDamping");
 
         exposureAutoDamping->SetValue(image_config.exposure_auto_damping);
@@ -1070,8 +1070,6 @@ void Task::balanceConfiguration(Arena::IDevice& device)
             throw runtime_error("BalanceWhiteAutoAnchorSelector value differs.");
         }
     }
-
-    LOG_INFO_S << "_analog_controller_config.get().balance_white_auto: " << (_analog_controller_config.get().balance_white_auto);
 
     if ((_analog_controller_config.get().balance_white_enable == false) &&
         (_analog_controller_config.get().balance_white_auto ==
