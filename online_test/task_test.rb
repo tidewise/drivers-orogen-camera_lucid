@@ -86,7 +86,7 @@ describe OroGen.camera_lucid.Task do
         )
 
         task.properties.camera_config = {
-            ip: "10.160.16.10",
+            ip: "10.1.1.67",
             factory_reset: false,
             camera_reset_timeout: Time.at(50),
             temperature_selector: "DEVICE_TEMPERATURE_SELECTOR_SENSOR",
@@ -100,8 +100,11 @@ describe OroGen.camera_lucid.Task do
             depth: 8,
             exposure_auto: "EXPOSURE_AUTO_OFF",
             exposure_time: Time.at(0.001),
+            exposure_auto_algorithm: :EXPOSURE_AUTO_ALGORITHM_MEAN,
+            exposure_auto_damping: 89.8438,
             min_exposure_time: Time.at(0.000_046_912),
             max_exposure_time: Time.at(0.082_446_100),
+            short_exposure_enable: false,
             width: 2448,
             height: 2048,
             offset_x: 0,
@@ -116,7 +119,13 @@ describe OroGen.camera_lucid.Task do
             gain_min: 0,
             gain_max: 48,
             gamma_enabled: true,
-            gamma: 0.5
+            gamma: 0.5,
+            balance_ratio: 1.0864,
+            balance_white_enable: true,
+            balance_ratio_selector: "BALANCE_RATIO_SELECTOR_GREEN",
+            balance_white_auto: "BALANCE_WHITE_AUTO_CONTINUOUS",
+            balance_white_auto_anchor_selector:
+                "BALANCE_WHITE_AUTO_ANCHOR_SELECTOR_MEANRGB"
         }
 
         task.properties.binning_config = {
