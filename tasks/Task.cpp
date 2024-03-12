@@ -1001,30 +1001,6 @@ void Task::analogConfiguration(Arena::IDevice& device)
 
 void Task::balanceConfiguration(Arena::IDevice& device)
 {
-    /** Balance Ratio Selector - Selects which balance ratio is controlled by
-     * various Balance Ratio Features.*/
-
-    LOG_INFO_S << "Setting Balance Ratio Selector to ."
-               << getEnumName(_analog_controller_config.get().balance_ratio_selector,
-                      balance_ratio_selector_name);
-    Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
-        "BalanceRatioSelector",
-        getEnumName(_analog_controller_config.get().balance_ratio_selector,
-            balance_ratio_selector_name));
-
-    GenApi::CEnumerationPtr balance_selector =
-        device.GetNodeMap()->GetNode("BalanceRatioSelector");
-
-    auto current = balance_selector->GetCurrentEntry()->GetSymbolic();
-    if (current != getEnumName(_analog_controller_config.get().balance_ratio_selector,
-                       balance_ratio_selector_name)) {
-        LOG_WARN_S << "BalanceRatioSelector value differs from expected: "
-                   << getEnumName(_analog_controller_config.get().balance_ratio_selector,
-                          balance_ratio_selector_name)
-                   << " current: " << current;
-        throw runtime_error("BalanceWhiteRatioSelector value differs.");
-    }
-
     /** White Balance Configuration:
      *  - Sets WhiteBalance mode (Enabled or Disabled).
      *  - Controls the balance white auto mode if it's enabled
@@ -1097,13 +1073,34 @@ void Task::balanceConfiguration(Arena::IDevice& device)
         }
     }
 
-    if ((_analog_controller_config.get().balance_white_enable == false) &&
-        (_analog_controller_config.get().balance_white_auto ==
-            BalanceWhiteAuto::BALANCE_WHITE_AUTO_OFF)) {
+    /** Balance Ratio Selector - Selects which balance ratio is controlled by
+     * various Balance Ratio Features.*/
+
+    if (_analog_controller_config.get().balance_white_auto ==
+        BalanceWhiteAuto::BALANCE_WHITE_AUTO_OFF) {
         GenApi::CFloatPtr value = device.GetNodeMap()->GetNode("BalanceRatio");
 
-        LOG_INFO_S << "Setting Balance Ratio Value";
-        value->SetValue(_analog_controller_config.get().balance_ratio);
+        LOG_INFO_S << "Setting BalanceRatioSelector to Blue";
+        Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
+            "BalanceRatioSelector",
+            "Blue");
+
+        LOG_INFO_S << "Setting Blue Balance Ratio Value";
+        value->SetValue(_analog_controller_config.get().blue_balance_ratio);
+
+        LOG_INFO_S << "Setting BalanceRatioSelector to Green";
+        Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
+            "BalanceRatioSelector",
+            "Green");
+
+        LOG_INFO_S << "Setting Green Balance Ratio Value";
+        value->SetValue(_analog_controller_config.get().green_balance_ratio);
+
+        LOG_INFO_S << "Setting BalanceRatioSelector to RED";
+        Arena::SetNodeValue<gcstring>(device.GetNodeMap(), "BalanceRatioSelector", "Red");
+
+        LOG_INFO_S << "Setting Red Balance Ratio Value";
+        value->SetValue(_analog_controller_config.get().red_balance_ratio);
     }
 }
 

@@ -176,7 +176,9 @@ namespace camera_lucid {
             BalanceRatioSelector::BALANCE_RATIO_SELECTOR_RED;
         /** Balance Ratio - Controls the selected balance ratio as an absolute physical
          * value. This is an amplification factor applied to the video signal.*/
-        float balance_ratio = 1.0684;
+        float blue_balance_ratio = 2.1189;
+        float green_balance_ratio = 0.998047;
+        float red_balance_ratio = 1.61523;
         /** Balance White Auto - Controls the mode for automatic white balancing
          *  between color channels.*/
         BalanceWhiteAuto balance_white_auto =
