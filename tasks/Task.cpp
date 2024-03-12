@@ -331,6 +331,7 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
     dimensionsConfiguration(device);
     exposureConfiguration(device);
     analogConfiguration(device);
+    balanceConfiguration(device);
     infoConfiguration(device);
 
     auto current_time = base::Time::now();
@@ -776,14 +777,52 @@ void Task::exposureConfiguration(Arena::IDevice& device)
      *  - Checks if exposure auto is off
      *      - Sets fixed exposure time
      * */
+    LOG_INFO_S << "Setting Short Exposure State";
+    Arena::SetNodeValue<bool>(device.GetNodeMap(),
+        "ShortExposureEnable",
+        image_config.short_exposure_enable);
+
     if (image_config.exposure_auto == ExposureAuto::EXPOSURE_AUTO_CONTINUOUS) {
         Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
             "ExposureAutoLimitAuto",
             getEnumName(image_config.exposure_auto_limit_auto,
                 exposure_auto_limit_auto_name));
 
-        if (image_config.exposure_auto_limit_auto ==
-            ExposureAutoLimitAuto::EXPOSURE_AUTO_LIMIT_AUTO_OFF) {
+        LOG_INFO_S << "Setting auto exposure algorithm to"
+                   << getEnumName(image_config.exposure_auto_algorithm,
+                          exposure_auto_algorithm_name);
+
+        Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
+            "ExposureAutoAlgorithm",
+            getEnumName(image_config.exposure_auto_algorithm,
+                exposure_auto_algorithm_name));
+
+        GenApi::CEnumerationPtr exposureAutoAlgorithm =
+            device.GetNodeMap()->GetNode("ExposureAutoAlgorithm");
+
+        auto current_algorithm = exposureAutoAlgorithm->GetCurrentEntry()->GetSymbolic();
+        if (current_algorithm != getEnumName(image_config.exposure_auto_algorithm,
+                                     exposure_auto_algorithm_name)) {
+            LOG_WARN_S << "ExposureAutoAlgorithm value differs setpoint: "
+                       << getEnumName(image_config.exposure_auto_algorithm,
+                              exposure_auto_algorithm_name)
+                       << " current: " << current_algorithm;
+            throw runtime_error("ExposureAutoAlgorithm value differs.");
+        }
+
+        if (!base::isUnknown(image_config.exposure_auto_damping)) {
+            LOG_INFO_S << "Setting device's exposure auto damping to "
+                       << image_config.exposure_auto_damping;
+
+            GenApi::CFloatPtr exposureAutoDamping =
+                device.GetNodeMap()->GetNode("ExposureAutoDamping");
+
+            exposureAutoDamping->SetValue(image_config.exposure_auto_damping);
+        }
+
+        if ((image_config.exposure_auto_limit_auto ==
+                ExposureAutoLimitAuto::EXPOSURE_AUTO_LIMIT_AUTO_OFF) &&
+            (image_config.short_exposure_enable == false)) {
             LOG_INFO_S << "Setting exposure time lower and upper limit";
 
             GenApi::CFloatPtr lowerLimit =
@@ -820,13 +859,19 @@ void Task::exposureConfiguration(Arena::IDevice& device)
      *  - Sets target brightness value
      *  - Note: 70 is the optimal target brightness value for outdoor
      *  usage, as stated in the camera's manual. */
-    LOG_INFO_S << "Setting device's target brightness to "
-               << image_config.target_brightness;
+    if (image_config.exposure_auto == ExposureAuto::EXPOSURE_AUTO_ONCE) {
+        LOG_WARN_S << "Target Brightness cannot be set when "
+                   << "ExposureAuto is set to ONCE";
+    }
+    else {
+        LOG_INFO_S << "Setting device's target brightness to "
+                   << image_config.target_brightness;
 
-    GenApi::CIntegerPtr targetBrightness =
-        device.GetNodeMap()->GetNode("TargetBrightness");
+        GenApi::CIntegerPtr targetBrightness =
+            device.GetNodeMap()->GetNode("TargetBrightness");
 
-    targetBrightness->SetValue(image_config.target_brightness);
+        targetBrightness->SetValue(image_config.target_brightness);
+    }
 }
 
 void Task::acquisitionConfiguration(Arena::IDevice& device)
@@ -942,8 +987,7 @@ void Task::analogConfiguration(Arena::IDevice& device)
 
     /** Gamma configuration:
      *  - Sets Gamma mode (Enabled or Disabled).
-     *  - Gets the initial Gamma value (1 is the Default)
-     *  and changes it.
+     *  - Gets the initial Gamma value (1 is the Default) and changes it.
      *  - Note: 0.5 the Optimal Gamma Value for outdoor
      *  usage as stated on the camera's manual. */
     LOG_INFO_S << "Setting Gamma Mode";
@@ -955,6 +999,111 @@ void Task::analogConfiguration(Arena::IDevice& device)
 
     LOG_INFO_S << "Setting Gamma Values";
     value->SetValue(_analog_controller_config.get().gamma);
+}
+
+void Task::balanceConfiguration(Arena::IDevice& device)
+{
+    /** White Balance Configuration:
+     *  - Sets WhiteBalance mode (Enabled or Disabled).
+     *  - Controls the balance white auto mode if it's enabled
+     *  - Controls the type of statistics used for balance white auto */
+
+    LOG_INFO_S << "Setting Balance White Enable to ."
+               << _analog_controller_config.get().balance_white_enable;
+
+    Arena::SetNodeValue<bool>(device.GetNodeMap(),
+        "BalanceWhiteEnable",
+        _analog_controller_config.get().balance_white_enable);
+
+    GenApi::CBooleanPtr white_balance_enabled =
+        device.GetNodeMap()->GetNode("BalanceWhiteEnable");
+    bool current_bool = white_balance_enabled->GetValue();
+    if (current_bool != _analog_controller_config.get().balance_white_enable) {
+        LOG_WARN_S << "BalanceWhiteAuto value differs from expected: "
+                   << _analog_controller_config.get().balance_white_enable
+                   << " current: " << current_bool;
+        throw runtime_error("BalanceWhiteAuto value differs.");
+    }
+
+    LOG_INFO_S << "Setting Balance White Auto to ."
+               << getEnumName(_analog_controller_config.get().balance_white_auto,
+                      balance_white_auto_name);
+    Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
+        "BalanceWhiteAuto",
+        getEnumName(_analog_controller_config.get().balance_white_auto,
+            balance_white_auto_name));
+    GenApi::CEnumerationPtr balance_auto =
+        device.GetNodeMap()->GetNode("BalanceWhiteAuto");
+    auto current_auto = balance_auto->GetCurrentEntry()->GetSymbolic();
+
+    if (current_auto != getEnumName(_analog_controller_config.get().balance_white_auto,
+                            balance_white_auto_name)) {
+        LOG_WARN_S << "BalanceWhiteAuto value differs from expected: "
+                   << getEnumName(_analog_controller_config.get().balance_white_auto,
+                          balance_white_auto_name)
+                   << " current: " << current_auto;
+        throw runtime_error("BalanceWhiteAuto value differs.");
+    }
+
+    if (_analog_controller_config.get().balance_white_auto ==
+        BalanceWhiteAuto::BALANCE_WHITE_AUTO_CONTINUOUS) {
+
+        LOG_INFO_S << "Setting Balance White Auto Anchor Selector to ."
+                   << getEnumName(_analog_controller_config.get()
+                                      .balance_white_auto_anchor_selector,
+                          balance_white_auto_anchor_selector_name);
+        Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
+            "BalanceWhiteAutoAnchorSelector",
+            getEnumName(
+                _analog_controller_config.get().balance_white_auto_anchor_selector,
+                balance_white_auto_anchor_selector_name));
+
+        GenApi::CEnumerationPtr anchor_selector =
+            device.GetNodeMap()->GetNode("BalanceWhiteAutoAnchorSelector");
+
+        auto current_anchor = anchor_selector->GetCurrentEntry()->GetSymbolic();
+        if (current_anchor !=
+            getEnumName(
+                _analog_controller_config.get().balance_white_auto_anchor_selector,
+                balance_white_auto_anchor_selector_name)) {
+            LOG_WARN_S << "BalanceWhiteAuto value differs from expected: "
+                       << getEnumName(_analog_controller_config.get()
+                                          .balance_white_auto_anchor_selector,
+                              balance_white_auto_anchor_selector_name)
+                       << " current: " << current_anchor;
+            throw runtime_error("BalanceWhiteAutoAnchorSelector value differs.");
+        }
+    }
+
+    /** Balance Ratio Selector - Selects which balance ratio is controlled by
+     * various Balance Ratio Features.*/
+
+    if (_analog_controller_config.get().balance_white_auto ==
+        BalanceWhiteAuto::BALANCE_WHITE_AUTO_OFF) {
+        GenApi::CFloatPtr value = device.GetNodeMap()->GetNode("BalanceRatio");
+
+        LOG_INFO_S << "Setting BalanceRatioSelector to Blue";
+        Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
+            "BalanceRatioSelector",
+            "Blue");
+
+        LOG_INFO_S << "Setting Blue Balance Ratio Value";
+        value->SetValue(_analog_controller_config.get().blue_balance_ratio);
+
+        LOG_INFO_S << "Setting BalanceRatioSelector to Green";
+        Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
+            "BalanceRatioSelector",
+            "Green");
+
+        LOG_INFO_S << "Setting Green Balance Ratio Value";
+        value->SetValue(_analog_controller_config.get().green_balance_ratio);
+
+        LOG_INFO_S << "Setting BalanceRatioSelector to RED";
+        Arena::SetNodeValue<gcstring>(device.GetNodeMap(), "BalanceRatioSelector", "Red");
+
+        LOG_INFO_S << "Setting Red Balance Ratio Value";
+        value->SetValue(_analog_controller_config.get().red_balance_ratio);
+    }
 }
 
 void Task::factoryReset(Arena::IDevice* device, System& system)
@@ -1022,6 +1171,8 @@ void Task::collectInfo()
                               device_temperature_selector_name);
             info_message.temperature = info_message.temperature.fromCelsius(
                 Arena::GetNodeValue<double>(m_device->GetNodeMap(), "DeviceTemperature"));
+            info_message.average_exposure =
+                Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(), "CalculatedMean");
             info_message.acquisition_timeouts = m_acquisition_timeouts_sum;
             info_message.incomplete_images = m_incomplete_images_sum;
         }

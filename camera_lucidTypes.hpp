@@ -2,6 +2,7 @@
 #define camera_lucid_TYPES_HPP
 
 #include "Arena/ArenaApi.h"
+#include <base/Float.hpp>
 #include <base/Temperature.hpp>
 #include <base/Time.hpp>
 #include <base/samples/Frame.hpp>
@@ -45,6 +46,12 @@ namespace camera_lucid {
     };
     static std::vector<std::string> exposure_auto_name = {"Off", "Once", "Continuous"};
 
+    enum ExposureAutoAlgorithm {
+        EXPOSURE_AUTO_ALGORITHM_MEDIAN = 0,
+        EXPOSURE_AUTO_ALGORITHM_MEAN = 1
+    };
+    static std::vector<std::string> exposure_auto_algorithm_name = {"Median", "Mean"};
+
     enum ExposureAutoLimitAuto {
         EXPOSURE_AUTO_LIMIT_AUTO_OFF = 0,
         EXPOSURE_AUTO_LIMIT_AUTO_CONTINUOUS = 1
@@ -70,6 +77,35 @@ namespace camera_lucid {
         GAIN_AUTO_CONTINUOUS = 2
     };
     static std::vector<std::string> gain_auto_name = {"Off", "Once", "Continuous"};
+
+    enum BalanceRatioSelector {
+        BALANCE_RATIO_SELECTOR_RED = 0,
+        BALANCE_RATIO_SELECTOR_GREEN = 1,
+        BALANCE_RATIO_SELECTOR_BLUE = 2
+    };
+    static std::vector<std::string> balance_ratio_selector_name = {"Red",
+        "Green",
+        "Blue"};
+    // Despite the fact we should be able to set it to Once, the driver doesn't accept it.
+    enum BalanceWhiteAuto {
+        BALANCE_WHITE_AUTO_OFF = 0,
+        BALANCE_WHITE_AUTO_ONCE = 1,
+        BALANCE_WHITE_AUTO_CONTINUOUS = 2
+    };
+    static std::vector<std::string> balance_white_auto_name = {"Off",
+        "Once",
+        "Continuous"};
+
+    enum BalanceWhiteAutoAnchorSelector {
+        BALANCE_WHITE_AUTO_ANCHOR_SELECTOR_MINRGB = 0,
+        BALANCE_WHITE_AUTO_ANCHOR_SELECTOR_MAXRGB = 1,
+        BALANCE_WHITE_AUTO_ANCHOR_SELECTOR_MEANRGB = 2,
+        BALANCE_WHITE_AUTO_ANCHOR_SELECTOR_GREEN = 3
+    };
+    static std::vector<std::string> balance_white_auto_anchor_selector_name = {"MinRGB",
+        "MaxRGB",
+        "MeanRGB",
+        "Green"};
 
     enum AcquisitionStartMode {
         ACQUISITION_START_MODE_NORMAL = 0,
@@ -133,6 +169,25 @@ namespace camera_lucid {
         /** Gamma correction configuration - For uncontrolled outdoor environments,
          * The recommended gamma value is 0.5. */
         float gamma = 0.5;
+        /** Balance White Enable - Enables the White Balance */
+        bool balance_white_enable = true;
+        /** Balance Ratio Selector - Selects which balance ratio is controlled by
+         *  various balance ratio features.*/
+        BalanceRatioSelector balance_ratio_selector =
+            BalanceRatioSelector::BALANCE_RATIO_SELECTOR_RED;
+        /** Balance Ratio - Controls the selected balance ratio as an absolute physical
+         * value. This is an amplification factor applied to the video signal.*/
+        float blue_balance_ratio = 2.1189;
+        float green_balance_ratio = 0.998047;
+        float red_balance_ratio = 1.61523;
+        /** Balance White Auto - Controls the mode for automatic white balancing
+         *  between color channels.*/
+        BalanceWhiteAuto balance_white_auto =
+            BalanceWhiteAuto::BALANCE_WHITE_AUTO_CONTINUOUS;
+        /** Balance White Auto Anchor Selector - Controls which type of statistics
+         *  are used for BalanceWhiteAuto.*/
+        BalanceWhiteAutoAnchorSelector balance_white_auto_anchor_selector =
+            BalanceWhiteAutoAnchorSelector::BALANCE_WHITE_AUTO_ANCHOR_SELECTOR_MAXRGB;
     };
 
     struct PTPConfig {
@@ -209,14 +264,24 @@ namespace camera_lucid {
             base::samples::frame::frame_mode_t::MODE_BAYER_RGGB;
         /** Depth*/
         uint8_t depth = 8;
+        /** Short Exposure State
+         *  This state needs a exposure_time between 2.464 and 1 microseconds
+         *  and is not compatible with Exposure_Auto_Limit_Auto_OFF when in
+         *  EXPOSURE_AUTO_CONTINUOUS. */
+        bool short_exposure_enable = false;
         /** Sets the automatic exposure mode.*/
         ExposureAuto exposure_auto = EXPOSURE_AUTO_CONTINUOUS;
+        /** Sets the automatic exposure algorithm*/
+        ExposureAutoAlgorithm exposure_auto_algorithm = EXPOSURE_AUTO_ALGORITHM_MEAN;
+        /** Sets the automatic exposure damping represented as %.
+         * Maximum, Minimum: 99.6094, 0.390625 */
+        double exposure_auto_damping = base::unknown<double>();
         /** Sets the exposure auto limit auto exposure mode*/
         ExposureAutoLimitAuto exposure_auto_limit_auto = EXPOSURE_AUTO_LIMIT_AUTO_OFF;
         /** Controls the device exposure time.*/
         base::Time exposure_time = base::Time::fromMilliseconds(1);
         /** Minimum exposure time.*/
-        base::Time min_exposure_time = base::Time::fromMicroseconds(46.912);
+        base::Time min_exposure_time = base::Time::fromMicroseconds(47);
         /** Maximum exposure time.*/
         base::Time max_exposure_time = base::Time::fromSeconds(10);
         /** Width of the image provided by the device in pixels.*/
@@ -253,6 +318,8 @@ namespace camera_lucid {
         uint64_t acquisition_timeouts = 0;
         /** Number of incomplete images since start*/
         uint64_t incomplete_images = 0;
+        /** Mean exposure time*/
+        uint64_t average_exposure;
     };
 }
 
