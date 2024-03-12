@@ -184,7 +184,7 @@ namespace camera_lucid {
         /** Balance White Auto Anchor Selector - Controls which type of statistics
          *  are used for BalanceWhiteAuto.*/
         BalanceWhiteAutoAnchorSelector balance_white_auto_anchor_selector =
-            BalanceWhiteAutoAnchorSelector::BALANCE_WHITE_AUTO_ANCHOR_SELECTOR_MEANRGB;
+            BalanceWhiteAutoAnchorSelector::BALANCE_WHITE_AUTO_ANCHOR_SELECTOR_MAXRGB;
     };
 
     struct PTPConfig {
