@@ -819,8 +819,8 @@ void Task::exposureConfiguration(Arena::IDevice& device)
         exposureAutoDamping->SetValue(image_config.exposure_auto_damping);
 
         if ((image_config.exposure_auto_limit_auto ==
-            ExposureAutoLimitAuto::EXPOSURE_AUTO_LIMIT_AUTO_OFF) && 
-             (image_config.short_exposure_enable == false)) {
+                ExposureAutoLimitAuto::EXPOSURE_AUTO_LIMIT_AUTO_OFF) &&
+            (image_config.short_exposure_enable == false)) {
             LOG_INFO_S << "Setting exposure time lower and upper limit";
 
             GenApi::CFloatPtr lowerLimit =

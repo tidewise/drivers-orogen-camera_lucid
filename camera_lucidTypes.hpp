@@ -261,7 +261,10 @@ namespace camera_lucid {
             base::samples::frame::frame_mode_t::MODE_BAYER_RGGB;
         /** Depth*/
         uint8_t depth = 8;
-        /** Short Exposure State*/
+        /** Short Exposure State
+         *  This state needs a exposure_time between 2.464 and 1 microseconds
+         *  and is not compatible with Exposure_Auto_Limit_Auto_OFF when in
+         *  EXPOSURE_AUTO_CONTINUOUS. */
         bool short_exposure_enable = false;
         /** Sets the automatic exposure mode.*/
         ExposureAuto exposure_auto = EXPOSURE_AUTO_CONTINUOUS;
