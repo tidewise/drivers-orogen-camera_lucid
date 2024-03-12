@@ -857,13 +857,19 @@ void Task::exposureConfiguration(Arena::IDevice& device)
      *  - Sets target brightness value
      *  - Note: 70 is the optimal target brightness value for outdoor
      *  usage, as stated in the camera's manual. */
-    LOG_INFO_S << "Setting device's target brightness to "
-               << image_config.target_brightness;
+    if (image_config.exposure_auto == ExposureAuto::EXPOSURE_AUTO_ONCE) {
+        LOG_WARN_S << "Target Brightness cannot be set when "
+                   << "ExposureAuto is set to ONCE";
+    }
+    else {
+        LOG_INFO_S << "Setting device's target brightness to "
+                   << image_config.target_brightness;
 
-    GenApi::CIntegerPtr targetBrightness =
-        device.GetNodeMap()->GetNode("TargetBrightness");
+        GenApi::CIntegerPtr targetBrightness =
+            device.GetNodeMap()->GetNode("TargetBrightness");
 
-    targetBrightness->SetValue(image_config.target_brightness);
+        targetBrightness->SetValue(image_config.target_brightness);
+    }
 }
 
 void Task::acquisitionConfiguration(Arena::IDevice& device)
