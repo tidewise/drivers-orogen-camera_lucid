@@ -810,13 +810,15 @@ void Task::exposureConfiguration(Arena::IDevice& device)
             throw runtime_error("ExposureAutoAlgorithm value differs.");
         }
 
-        LOG_INFO_S << "Setting device's exposure auto damping to "
-                   << image_config.exposure_auto_damping;
+        if (!base::isUnknown(image_config.exposure_auto_damping)) {
+            LOG_INFO_S << "Setting device's exposure auto damping to "
+                       << image_config.exposure_auto_damping;
 
-        GenApi::CFloatPtr exposureAutoDamping =
-            device.GetNodeMap()->GetNode("ExposureAutoDamping");
+            GenApi::CFloatPtr exposureAutoDamping =
+                device.GetNodeMap()->GetNode("ExposureAutoDamping");
 
-        exposureAutoDamping->SetValue(image_config.exposure_auto_damping);
+            exposureAutoDamping->SetValue(image_config.exposure_auto_damping);
+        }
 
         if ((image_config.exposure_auto_limit_auto ==
                 ExposureAutoLimitAuto::EXPOSURE_AUTO_LIMIT_AUTO_OFF) &&
@@ -1171,8 +1173,6 @@ void Task::collectInfo()
                 Arena::GetNodeValue<double>(m_device->GetNodeMap(), "DeviceTemperature"));
             info_message.average_exposure =
                 Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(), "CalculatedMean");
-            info_message.current_balance_ratio =
-                Arena::GetNodeValue<double>(m_device->GetNodeMap(), "BalanceRatio");
             info_message.acquisition_timeouts = m_acquisition_timeouts_sum;
             info_message.incomplete_images = m_incomplete_images_sum;
         }

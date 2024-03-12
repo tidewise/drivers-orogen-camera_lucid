@@ -2,6 +2,7 @@
 #define camera_lucid_TYPES_HPP
 
 #include "Arena/ArenaApi.h"
+#include <base/Float.hpp>
 #include <base/Temperature.hpp>
 #include <base/Time.hpp>
 #include <base/samples/Frame.hpp>
@@ -274,13 +275,13 @@ namespace camera_lucid {
         ExposureAutoAlgorithm exposure_auto_algorithm = EXPOSURE_AUTO_ALGORITHM_MEAN;
         /** Sets the automatic exposure damping represented as %.
          * Maximum, Minimum: 99.6094, 0.390625 */
-        double exposure_auto_damping = 89.8438;
+        double exposure_auto_damping = base::unknown<double>();
         /** Sets the exposure auto limit auto exposure mode*/
         ExposureAutoLimitAuto exposure_auto_limit_auto = EXPOSURE_AUTO_LIMIT_AUTO_OFF;
         /** Controls the device exposure time.*/
         base::Time exposure_time = base::Time::fromMilliseconds(1);
         /** Minimum exposure time.*/
-        base::Time min_exposure_time = base::Time::fromMicroseconds(46.912);
+        base::Time min_exposure_time = base::Time::fromMicroseconds(47);
         /** Maximum exposure time.*/
         base::Time max_exposure_time = base::Time::fromSeconds(10);
         /** Width of the image provided by the device in pixels.*/
@@ -319,8 +320,6 @@ namespace camera_lucid {
         uint64_t incomplete_images = 0;
         /** Mean exposure time*/
         uint64_t average_exposure;
-        /* Current balance ratio*/
-        float current_balance_ratio;
     };
 }
 
