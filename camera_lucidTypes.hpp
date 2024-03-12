@@ -317,6 +317,8 @@ namespace camera_lucid {
         uint64_t incomplete_images = 0;
         /** Mean exposure time*/
         uint64_t average_exposure;
+        /* Current balance ratio*/
+        float current_balance_ratio;
     };
 }
 

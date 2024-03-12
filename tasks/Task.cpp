@@ -1174,6 +1174,8 @@ void Task::collectInfo()
                 Arena::GetNodeValue<double>(m_device->GetNodeMap(), "DeviceTemperature"));
             info_message.average_exposure =
                 Arena::GetNodeValue<int64_t>(m_device->GetNodeMap(), "CalculatedMean");
+            info_message.current_balance_ratio =
+                Arena::GetNodeValue<double>(m_device->GetNodeMap(), "BalanceRatio");
             info_message.acquisition_timeouts = m_acquisition_timeouts_sum;
             info_message.incomplete_images = m_incomplete_images_sum;
         }
