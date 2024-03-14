@@ -169,17 +169,23 @@ namespace camera_lucid {
         /** Gamma correction configuration - For uncontrolled outdoor environments,
          * The recommended gamma value is 0.5. */
         float gamma = 0.5;
+        /** Configure White Balance
+         *  This skips the configuration on the balance white,
+         *  avoiding errors on the LUCID050S older firmware version */
+        bool configure_white_balance = false;
         /** Balance White Enable - Enables the White Balance */
-        bool balance_white_enable = true;
+        bool balance_white_enable = base::unknown<bool>();
         /** Balance Ratio Selector - Selects which balance ratio is controlled by
          *  various balance ratio features.*/
         BalanceRatioSelector balance_ratio_selector =
             BalanceRatioSelector::BALANCE_RATIO_SELECTOR_RED;
         /** Balance Ratio - Controls the selected balance ratio as an absolute physical
-         * value. This is an amplification factor applied to the video signal.*/
-        float blue_balance_ratio = 2.1189;
-        float green_balance_ratio = 0.998047;
-        float red_balance_ratio = 1.61523;
+         *  value. This is an amplification factor applied to the video signal.
+         *  Values calibrated on the office for blue, green and red respectively:
+         *  2.1189, 0.998047, 1.61523 */
+        float blue_balance_ratio = base::unknown<float>();
+        float green_balance_ratio = base::unknown<float>();
+        float red_balance_ratio = base::unknown<float>();
         /** Balance White Auto - Controls the mode for automatic white balancing
          *  between color channels.*/
         BalanceWhiteAuto balance_white_auto =
@@ -268,9 +274,13 @@ namespace camera_lucid {
          *  This state needs a exposure_time between 2.464 and 1 microseconds
          *  and is not compatible with Exposure_Auto_Limit_Auto_OFF when in
          *  EXPOSURE_AUTO_CONTINUOUS. */
-        bool short_exposure_enable = false;
+        bool short_exposure_enable = base::unknown<bool>();
         /** Sets the automatic exposure mode.*/
         ExposureAuto exposure_auto = EXPOSURE_AUTO_CONTINUOUS;
+        /** Configure automatic exposure algorithm configuration
+         *  This skips the configuration on the automatic exposure algorithm
+         *  avoiding errors on the LUCID050S older firmware version */
+        bool configure_automatic_exposure_algorithm = false;
         /** Sets the automatic exposure algorithm*/
         ExposureAutoAlgorithm exposure_auto_algorithm = EXPOSURE_AUTO_ALGORITHM_MEAN;
         /** Sets the automatic exposure damping represented as %.

@@ -331,7 +331,9 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
     dimensionsConfiguration(device);
     exposureConfiguration(device);
     analogConfiguration(device);
-    balanceConfiguration(device);
+    if (_analog_controller_config.get().configure_white_balance == true) {
+        balanceConfiguration(device);
+    }
     infoConfiguration(device);
 
     auto current_time = base::Time::now();
@@ -777,10 +779,12 @@ void Task::exposureConfiguration(Arena::IDevice& device)
      *  - Checks if exposure auto is off
      *      - Sets fixed exposure time
      * */
-    LOG_INFO_S << "Setting Short Exposure State";
-    Arena::SetNodeValue<bool>(device.GetNodeMap(),
-        "ShortExposureEnable",
-        image_config.short_exposure_enable);
+    if (!base::isUnknown(image_config.short_exposure_enable)) {
+        LOG_INFO_S << "Setting Short Exposure State";
+        Arena::SetNodeValue<bool>(device.GetNodeMap(),
+            "ShortExposureEnable",
+            image_config.short_exposure_enable);
+    }
 
     if (image_config.exposure_auto == ExposureAuto::EXPOSURE_AUTO_CONTINUOUS) {
         Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
@@ -788,26 +792,29 @@ void Task::exposureConfiguration(Arena::IDevice& device)
             getEnumName(image_config.exposure_auto_limit_auto,
                 exposure_auto_limit_auto_name));
 
-        LOG_INFO_S << "Setting auto exposure algorithm to"
-                   << getEnumName(image_config.exposure_auto_algorithm,
-                          exposure_auto_algorithm_name);
-
-        Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
-            "ExposureAutoAlgorithm",
-            getEnumName(image_config.exposure_auto_algorithm,
-                exposure_auto_algorithm_name));
-
-        GenApi::CEnumerationPtr exposureAutoAlgorithm =
-            device.GetNodeMap()->GetNode("ExposureAutoAlgorithm");
-
-        auto current_algorithm = exposureAutoAlgorithm->GetCurrentEntry()->GetSymbolic();
-        if (current_algorithm != getEnumName(image_config.exposure_auto_algorithm,
-                                     exposure_auto_algorithm_name)) {
-            LOG_WARN_S << "ExposureAutoAlgorithm value differs setpoint: "
+        if (image_config.configure_automatic_exposure_algorithm == true) {
+            LOG_INFO_S << "Setting auto exposure algorithm to"
                        << getEnumName(image_config.exposure_auto_algorithm,
-                              exposure_auto_algorithm_name)
-                       << " current: " << current_algorithm;
-            throw runtime_error("ExposureAutoAlgorithm value differs.");
+                              exposure_auto_algorithm_name);
+
+            Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
+                "ExposureAutoAlgorithm",
+                getEnumName(image_config.exposure_auto_algorithm,
+                    exposure_auto_algorithm_name));
+
+            GenApi::CEnumerationPtr exposureAutoAlgorithm =
+                device.GetNodeMap()->GetNode("ExposureAutoAlgorithm");
+
+            auto current_algorithm =
+                exposureAutoAlgorithm->GetCurrentEntry()->GetSymbolic();
+            if (current_algorithm != getEnumName(image_config.exposure_auto_algorithm,
+                                         exposure_auto_algorithm_name)) {
+                LOG_WARN_S << "ExposureAutoAlgorithm value differs setpoint: "
+                           << getEnumName(image_config.exposure_auto_algorithm,
+                                  exposure_auto_algorithm_name)
+                           << " current: " << current_algorithm;
+                throw runtime_error("ExposureAutoAlgorithm value differs.");
+            }
         }
 
         if (!base::isUnknown(image_config.exposure_auto_damping)) {
@@ -1008,21 +1015,23 @@ void Task::balanceConfiguration(Arena::IDevice& device)
      *  - Controls the balance white auto mode if it's enabled
      *  - Controls the type of statistics used for balance white auto */
 
-    LOG_INFO_S << "Setting Balance White Enable to ."
-               << _analog_controller_config.get().balance_white_enable;
+    if (!base::isUnknown(_analog_controller_config.get().balance_white_enable)) {
+        LOG_INFO_S << "Setting Balance White Enable to ."
+                   << _analog_controller_config.get().balance_white_enable;
 
-    Arena::SetNodeValue<bool>(device.GetNodeMap(),
-        "BalanceWhiteEnable",
-        _analog_controller_config.get().balance_white_enable);
+        Arena::SetNodeValue<bool>(device.GetNodeMap(),
+            "BalanceWhiteEnable",
+            _analog_controller_config.get().balance_white_enable);
 
-    GenApi::CBooleanPtr white_balance_enabled =
-        device.GetNodeMap()->GetNode("BalanceWhiteEnable");
-    bool current_bool = white_balance_enabled->GetValue();
-    if (current_bool != _analog_controller_config.get().balance_white_enable) {
-        LOG_WARN_S << "BalanceWhiteAuto value differs from expected: "
-                   << _analog_controller_config.get().balance_white_enable
-                   << " current: " << current_bool;
-        throw runtime_error("BalanceWhiteAuto value differs.");
+        GenApi::CBooleanPtr white_balance_enabled =
+            device.GetNodeMap()->GetNode("BalanceWhiteEnable");
+        bool current_bool = white_balance_enabled->GetValue();
+        if (current_bool != _analog_controller_config.get().balance_white_enable) {
+            LOG_WARN_S << "BalanceWhiteAuto value differs from expected: "
+                       << _analog_controller_config.get().balance_white_enable
+                       << " current: " << current_bool;
+            throw runtime_error("BalanceWhiteAuto value differs.");
+        }
     }
 
     LOG_INFO_S << "Setting Balance White Auto to ."
@@ -1082,27 +1091,35 @@ void Task::balanceConfiguration(Arena::IDevice& device)
         BalanceWhiteAuto::BALANCE_WHITE_AUTO_OFF) {
         GenApi::CFloatPtr value = device.GetNodeMap()->GetNode("BalanceRatio");
 
-        LOG_INFO_S << "Setting BalanceRatioSelector to Blue";
-        Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
-            "BalanceRatioSelector",
-            "Blue");
+        if (!base::isUnknown(_analog_controller_config.get().blue_balance_ratio)) {
+            LOG_INFO_S << "Setting BalanceRatioSelector to Blue";
+            Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
+                "BalanceRatioSelector",
+                "Blue");
 
-        LOG_INFO_S << "Setting Blue Balance Ratio Value";
-        value->SetValue(_analog_controller_config.get().blue_balance_ratio);
+            LOG_INFO_S << "Setting Blue Balance Ratio Value";
+            value->SetValue(_analog_controller_config.get().blue_balance_ratio);
+        }
 
-        LOG_INFO_S << "Setting BalanceRatioSelector to Green";
-        Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
-            "BalanceRatioSelector",
-            "Green");
+        if (!base::isUnknown(_analog_controller_config.get().green_balance_ratio)) {
+            LOG_INFO_S << "Setting BalanceRatioSelector to Green";
+            Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
+                "BalanceRatioSelector",
+                "Green");
 
-        LOG_INFO_S << "Setting Green Balance Ratio Value";
-        value->SetValue(_analog_controller_config.get().green_balance_ratio);
+            LOG_INFO_S << "Setting Green Balance Ratio Value";
+            value->SetValue(_analog_controller_config.get().green_balance_ratio);
+        }
 
-        LOG_INFO_S << "Setting BalanceRatioSelector to RED";
-        Arena::SetNodeValue<gcstring>(device.GetNodeMap(), "BalanceRatioSelector", "Red");
+        if (!base::isUnknown(_analog_controller_config.get().red_balance_ratio)) {
+            LOG_INFO_S << "Setting BalanceRatioSelector to RED";
+            Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
+                "BalanceRatioSelector",
+                "Red");
 
-        LOG_INFO_S << "Setting Red Balance Ratio Value";
-        value->SetValue(_analog_controller_config.get().red_balance_ratio);
+            LOG_INFO_S << "Setting Red Balance Ratio Value";
+            value->SetValue(_analog_controller_config.get().red_balance_ratio);
+        }
     }
 }
 
