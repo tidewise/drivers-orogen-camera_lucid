@@ -1010,61 +1010,63 @@ void Task::analogConfiguration(Arena::IDevice& device)
 
 void Task::balanceConfiguration(Arena::IDevice& device)
 {
+    auto analog_config = _analog_controller_config.get();
+
     /** White Balance Configuration:
      *  - Sets WhiteBalance mode (Enabled or Disabled).
      *  - Controls the balance white auto mode if it's enabled
      *  - Controls the type of statistics used for balance white auto */
 
-    if (!base::isUnknown(_analog_controller_config.get().balance_white_enable)) {
+    if (!base::isUnknown(analog_config.balance_white_enable)) {
         LOG_INFO_S << "Setting Balance White Enable to ."
-                   << _analog_controller_config.get().balance_white_enable;
+                   << analog_config.balance_white_enable;
 
         Arena::SetNodeValue<bool>(device.GetNodeMap(),
             "BalanceWhiteEnable",
-            _analog_controller_config.get().balance_white_enable);
+            analog_config.balance_white_enable);
 
         GenApi::CBooleanPtr white_balance_enabled =
             device.GetNodeMap()->GetNode("BalanceWhiteEnable");
         bool current_bool = white_balance_enabled->GetValue();
-        if (current_bool != _analog_controller_config.get().balance_white_enable) {
+        if (current_bool != analog_config.balance_white_enable) {
             LOG_WARN_S << "BalanceWhiteAuto value differs from expected: "
-                       << _analog_controller_config.get().balance_white_enable
+                       << analog_config.balance_white_enable
                        << " current: " << current_bool;
             throw runtime_error("BalanceWhiteAuto value differs.");
         }
     }
 
     LOG_INFO_S << "Setting Balance White Auto to ."
-               << getEnumName(_analog_controller_config.get().balance_white_auto,
+               << getEnumName(analog_config.balance_white_auto,
                       balance_white_auto_name);
     Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
         "BalanceWhiteAuto",
-        getEnumName(_analog_controller_config.get().balance_white_auto,
+        getEnumName(analog_config.balance_white_auto,
             balance_white_auto_name));
     GenApi::CEnumerationPtr balance_auto =
         device.GetNodeMap()->GetNode("BalanceWhiteAuto");
     auto current_auto = balance_auto->GetCurrentEntry()->GetSymbolic();
 
-    if (current_auto != getEnumName(_analog_controller_config.get().balance_white_auto,
+    if (current_auto != getEnumName(analog_config.balance_white_auto,
                             balance_white_auto_name)) {
         LOG_WARN_S << "BalanceWhiteAuto value differs from expected: "
-                   << getEnumName(_analog_controller_config.get().balance_white_auto,
+                   << getEnumName(analog_config.balance_white_auto,
                           balance_white_auto_name)
                    << " current: " << current_auto;
         throw runtime_error("BalanceWhiteAuto value differs.");
     }
 
-    if (_analog_controller_config.get().balance_white_auto ==
+    if (analog_config.balance_white_auto ==
         BalanceWhiteAuto::BALANCE_WHITE_AUTO_CONTINUOUS) {
 
         LOG_INFO_S << "Setting Balance White Auto Anchor Selector to ."
-                   << getEnumName(_analog_controller_config.get()
+                   << getEnumName(analog_config
                                       .balance_white_auto_anchor_selector,
                           balance_white_auto_anchor_selector_name);
         Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
             "BalanceWhiteAutoAnchorSelector",
             getEnumName(
-                _analog_controller_config.get().balance_white_auto_anchor_selector,
+                analog_config.balance_white_auto_anchor_selector,
                 balance_white_auto_anchor_selector_name));
 
         GenApi::CEnumerationPtr anchor_selector =
@@ -1073,10 +1075,10 @@ void Task::balanceConfiguration(Arena::IDevice& device)
         auto current_anchor = anchor_selector->GetCurrentEntry()->GetSymbolic();
         if (current_anchor !=
             getEnumName(
-                _analog_controller_config.get().balance_white_auto_anchor_selector,
+                analog_config.balance_white_auto_anchor_selector,
                 balance_white_auto_anchor_selector_name)) {
             LOG_WARN_S << "BalanceWhiteAuto value differs from expected: "
-                       << getEnumName(_analog_controller_config.get()
+                       << getEnumName(analog_config
                                           .balance_white_auto_anchor_selector,
                               balance_white_auto_anchor_selector_name)
                        << " current: " << current_anchor;
@@ -1087,38 +1089,38 @@ void Task::balanceConfiguration(Arena::IDevice& device)
     /** Balance Ratio Selector - Selects which balance ratio is controlled by
      * various Balance Ratio Features.*/
 
-    if (_analog_controller_config.get().balance_white_auto ==
+    if (analog_config.balance_white_auto ==
         BalanceWhiteAuto::BALANCE_WHITE_AUTO_OFF) {
         GenApi::CFloatPtr value = device.GetNodeMap()->GetNode("BalanceRatio");
 
-        if (!base::isUnknown(_analog_controller_config.get().blue_balance_ratio)) {
+        if (!base::isUnknown(analog_config.blue_balance_ratio)) {
             LOG_INFO_S << "Setting BalanceRatioSelector to Blue";
             Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
                 "BalanceRatioSelector",
                 "Blue");
 
             LOG_INFO_S << "Setting Blue Balance Ratio Value";
-            value->SetValue(_analog_controller_config.get().blue_balance_ratio);
+            value->SetValue(analog_config.blue_balance_ratio);
         }
 
-        if (!base::isUnknown(_analog_controller_config.get().green_balance_ratio)) {
+        if (!base::isUnknown(analog_config.green_balance_ratio)) {
             LOG_INFO_S << "Setting BalanceRatioSelector to Green";
             Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
                 "BalanceRatioSelector",
                 "Green");
 
             LOG_INFO_S << "Setting Green Balance Ratio Value";
-            value->SetValue(_analog_controller_config.get().green_balance_ratio);
+            value->SetValue(analog_config.green_balance_ratio);
         }
 
-        if (!base::isUnknown(_analog_controller_config.get().red_balance_ratio)) {
+        if (!base::isUnknown(analog_config.red_balance_ratio)) {
             LOG_INFO_S << "Setting BalanceRatioSelector to RED";
             Arena::SetNodeValue<gcstring>(device.GetNodeMap(),
                 "BalanceRatioSelector",
                 "Red");
 
             LOG_INFO_S << "Setting Red Balance Ratio Value";
-            value->SetValue(_analog_controller_config.get().red_balance_ratio);
+            value->SetValue(analog_config.red_balance_ratio);
         }
     }
 }
