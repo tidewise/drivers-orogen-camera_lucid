@@ -174,7 +174,7 @@ namespace camera_lucid {
          *  avoiding errors on the LUCID050S older firmware version */
         bool configure_white_balance = false;
         /** Balance White Enable - Enables the White Balance */
-        bool balance_white_enable = base::unknown<bool>();
+        bool balance_white_enable = true;
         /** Balance Ratio Selector - Selects which balance ratio is controlled by
          *  various balance ratio features.*/
         BalanceRatioSelector balance_ratio_selector =
@@ -274,7 +274,7 @@ namespace camera_lucid {
          *  This state needs a exposure_time between 2.464 and 1 microseconds
          *  and is not compatible with Exposure_Auto_Limit_Auto_OFF when in
          *  EXPOSURE_AUTO_CONTINUOUS. */
-        bool short_exposure_enable = base::unknown<bool>();
+        bool short_exposure_enable = false;
         /** Sets the automatic exposure mode.*/
         ExposureAuto exposure_auto = EXPOSURE_AUTO_CONTINUOUS;
         /** Configure automatic exposure algorithm configuration
