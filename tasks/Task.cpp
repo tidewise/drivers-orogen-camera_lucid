@@ -906,6 +906,12 @@ void Task::acquisitionConfiguration(Arena::IDevice& device)
         ptp_sync_frame_rate->SetValue(config.frame_rate);
     }
     else {
+        double frame_timeout = _image_config.get().frame_timeout.toSeconds();
+        double seconds_per_frame = 1 / config.frame_rate;
+        if (frame_timeout < seconds_per_frame) {
+            throw std::runtime_error("THE ACQUISITION PERIOD NEEDED BY THE CONFIGURED "
+                                     "FRAME_RATE IS BIGGER THAN THE FRAME TIMEOUT");
+        }
         // Enable Acquisition Frame Rate
         Arena::SetNodeValue<bool>(device.GetNodeMap(),
             "AcquisitionFrameRateEnable",
