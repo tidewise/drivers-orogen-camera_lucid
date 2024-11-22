@@ -845,6 +845,12 @@ void Task::exposureConfiguration(Arena::IDevice& device)
         }
     }
     else if (image_config.exposure_auto == ExposureAuto::EXPOSURE_AUTO_OFF) {
+        double exposure_time_seconds = image_config.exposure_time.toSeconds();
+        double seconds_per_frame = 1 / image_config.frame_rate;
+        if (exposure_time_seconds > seconds_per_frame - 0.0001) {
+            throw std::runtime_error("EXPOSURE TIME IS BIGGER THAN THE ACQUISITION "
+                                     "PERIOD NEEDED BY THE CONFIGURED FRAME_RATE");
+        }
         LOG_INFO_S << "Setting exposure time to: "
                    << image_config.exposure_time.toMicroseconds() << "us";
         GenApi::CFloatPtr exposure_time = device.GetNodeMap()->GetNode("ExposureTime");
