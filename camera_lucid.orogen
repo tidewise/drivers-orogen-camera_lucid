@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 name "camera_lucid"
 # Optionally declare the version number
 # version "0.1"
@@ -77,5 +79,6 @@ task_context "Task" do
 
     output_port "frame", ro_ptr("base/samples/frame/Frame")
     output_port "info", "camera_lucid/CameraInfo"
+
     periodic 0.01
 end
