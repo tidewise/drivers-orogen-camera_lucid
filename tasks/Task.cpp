@@ -1013,7 +1013,7 @@ void Task::analogConfiguration(Arena::IDevice& device)
         _analog_controller_config.get().gamma_enabled);
 
     GenApi::CFloatPtr value = device.GetNodeMap()->GetNode("Gamma");
-
+    // if gamma is not enabled how can one set the gamma value?
     LOG_INFO_S << "Setting Gamma Values";
     value->SetValue(_analog_controller_config.get().gamma);
 }
