@@ -443,6 +443,10 @@ frame_mode_t Task::convertPixelFormatToFrameMode(PfncFormat format, uint8_t& dat
             data_depth = 8U;
             return frame_mode_t::MODE_BAYER_RGGB;
 
+        case PfncFormat_::BayerRG12:
+            data_depth = 12U;
+            return frame_mode_t::MODE_BAYER_RGGB;
+
         case PfncFormat_::BayerGR8:
             data_depth = 8U;
             return frame_mode_t::MODE_BAYER_GRBG;
