@@ -3,6 +3,7 @@ templates/*
 *~
 .*.swp
 build/*
+bundle/
 
 *autobuild-stamp
 .vscode

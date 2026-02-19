@@ -47,6 +47,7 @@ argument.
         int m_acquisition_timeouts_count = 0;
         uint64_t m_incomplete_images_sum = 0;
         uint64_t m_acquisition_timeouts_sum = 0;
+        ImageConfig m_image_config;
 
     public:
         /** TaskContext constructor for Task

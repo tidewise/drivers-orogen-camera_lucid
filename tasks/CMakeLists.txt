@@ -2,7 +2,7 @@
 
 include(camera_lucidTaskLib)
 ADD_LIBRARY(${CAMERA_LUCID_TASKLIB_NAME} SHARED
-    ${CAMERA_LUCID_TASKLIB_SOURCES} System.cpp)
+    ${CAMERA_LUCID_TASKLIB_SOURCES} Helpers.cpp System.cpp)
 add_dependencies(${CAMERA_LUCID_TASKLIB_NAME}
     regen-typekit)
 
