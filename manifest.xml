@@ -12,4 +12,5 @@
   <depend package="drivers/camera_lucid_arenasdk" />
 
   <test_depend name="tools/syskit" />
+  <test_depend package="google-test" />
 </package>

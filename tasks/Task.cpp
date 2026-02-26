@@ -1,6 +1,7 @@
 /* Generated from orogen/lib/orogen/templates/tasks/Task.cpp */
 
 #include "Task.hpp"
+#include "Helpers.hpp"
 #include "base/samples/Frame.hpp"
 #include <base-logging/Logging.hpp>
 #include <thread>
@@ -111,6 +112,10 @@ bool Task::configureHook()
     if (!TaskBase::configureHook()) {
         return false;
     }
+
+    m_image_config = _image_config.get();
+    validate(m_image_config);
+
     try {
         auto& system = System::Instance();
         ArenaDevice device(connectToCamera(system), system);
@@ -163,7 +168,7 @@ bool Task::startHook()
     m_incomplete_images_count = 0;
     m_acquisition_timeouts_sum = 0;
     m_incomplete_images_sum = 0;
-    m_check_status_deadline = base::Time::now();
+    m_check_status_deadline = base::Time::now() + m_image_config.check_image_status;
     return true;
 }
 void Task::updateHook()
@@ -172,10 +177,10 @@ void Task::updateHook()
 
     acquireFrame();
 
-    if (m_acquisition_timeouts_count > _image_config.get().max_acquisition_timeout) {
+    if (m_acquisition_timeouts_count > m_image_config.max_acquisition_timeout) {
         throw runtime_error("Exceded maximum number of timeouts!!");
     }
-    if (m_incomplete_images_count > _image_config.get().max_incomplete_images) {
+    if (m_incomplete_images_count > m_image_config.max_incomplete_images) {
         throw runtime_error("Exceded maximum number of incomplete images!!");
     }
 
@@ -183,7 +188,7 @@ void Task::updateHook()
         m_incomplete_images_count = 0;
         m_acquisition_timeouts_count = 0;
         m_check_status_deadline =
-            base::Time::now() + _image_config.get().check_image_status;
+            base::Time::now() + m_image_config.check_image_status;
     }
 
     collectInfo();
@@ -312,8 +317,8 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
     LOG_INFO_S << "Setting PixelFormat.";
     Arena::SetNodeValue<GenICam::gcstring>(device.GetNodeMap(),
         "PixelFormat",
-        convertFrameModeToPixelFormat(_image_config.get().format,
-            _image_config.get().depth)
+        convertFrameModeToPixelFormat(m_image_config.format,
+            m_image_config.depth)
             .c_str());
 
     // When horizontal binning is used, horizontal decimation (if supported) is not
@@ -350,10 +355,10 @@ void Task::configureCamera(Arena::IDevice& device, System& system)
             transmission_config.mtu_check_sleep.toMilliseconds()));
     }
 
-    Frame* frame = new Frame(_image_config.get().width,
-        _image_config.get().height,
-        _image_config.get().depth,
-        _image_config.get().format,
+    Frame* frame = new Frame(m_image_config.width,
+        m_image_config.height,
+        m_image_config.depth,
+        m_image_config.format,
         0,
         0);
     m_frame.reset(frame);
@@ -368,7 +373,7 @@ void Task::acquireFrame()
             Arena::ExecuteNode(m_device->GetNodeMap(), "TransferStart");
         }
         frame.reset(
-            m_device->GetImage(_image_config.get().frame_timeout.toMilliseconds()),
+            m_device->GetImage(m_image_config.frame_timeout.toMilliseconds()),
             m_device);
         received_time = base::Time::now();
         if (_transmission_config.get().explicit_data_transfer) {
@@ -744,21 +749,21 @@ void Task::dimensionsConfiguration(Arena::IDevice& device)
     }
 
     LOG_INFO_S << "Setting Width.";
-    width->SetValue(_image_config.get().width);
+    width->SetValue(m_image_config.width);
     LOG_INFO_S << "Setting Height.";
-    height->SetValue(_image_config.get().height);
+    height->SetValue(m_image_config.height);
     LOG_INFO_S << "Setting Offset X.";
-    offset_x->SetValue(_image_config.get().offset_x);
+    offset_x->SetValue(m_image_config.offset_x);
     LOG_INFO_S << "Setting Offset Y.";
-    offset_y->SetValue(_image_config.get().offset_y);
+    offset_y->SetValue(m_image_config.offset_y);
 
-    if (_image_config.get().width !=
+    if (m_image_config.width !=
             Arena::GetNodeValue<int64_t>(device.GetNodeMap(), "Width") ||
-        _image_config.get().height !=
+        m_image_config.height !=
             Arena::GetNodeValue<int64_t>(device.GetNodeMap(), "Height") ||
-        _image_config.get().offset_x !=
+        m_image_config.offset_x !=
             Arena::GetNodeValue<int64_t>(device.GetNodeMap(), "OffsetX") ||
-        _image_config.get().offset_y !=
+        m_image_config.offset_y !=
             Arena::GetNodeValue<int64_t>(device.GetNodeMap(), "OffsetY")) {
         throw runtime_error("Width/Heigth/Offset not properly configured.");
     }
@@ -766,7 +771,7 @@ void Task::dimensionsConfiguration(Arena::IDevice& device)
 
 void Task::exposureConfiguration(Arena::IDevice& device)
 {
-    auto image_config = _image_config.get();
+    auto const& image_config = m_image_config;
 
     LOG_INFO_S << "Setting auto exposure to "
                << getEnumName(image_config.exposure_auto, exposure_auto_name);
@@ -891,7 +896,7 @@ void Task::exposureConfiguration(Arena::IDevice& device)
 
 void Task::acquisitionConfiguration(Arena::IDevice& device)
 {
-    auto config = _image_config.get();
+    auto const& config = m_image_config;
 
     LOG_INFO_S << "Configuring Acquisition.";
 
@@ -916,7 +921,7 @@ void Task::acquisitionConfiguration(Arena::IDevice& device)
         ptp_sync_frame_rate->SetValue(config.frame_rate);
     }
     else {
-        double frame_timeout = _image_config.get().frame_timeout.toSeconds();
+        double frame_timeout = config.frame_timeout.toSeconds();
         double seconds_per_frame = 1 / config.frame_rate;
         if (frame_timeout < seconds_per_frame) {
             throw std::runtime_error("THE ACQUISITION PERIOD NEEDED BY THE CONFIGURED "
